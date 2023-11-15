@@ -170,8 +170,8 @@ def train(model, optimizer, nb_epochs, batch_size, dataset_name):
 
 
 if __name__ == "__main__":
-    dataset_name = "circles"
-    n_epochs = int(10)
+    dataset_name = "mvn"
+    n_epochs = int(5000)
     batch_size = 64_000
     assert dataset_name in ["swissroll", "circles", "blobs", "mvn"]
     print(f'Training params: dataset = {dataset_name},n_epochs= {n_epochs} , batch_size = {batch_size}')
