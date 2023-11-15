@@ -5,17 +5,36 @@ as a part of this tutorial
 https://papers-100-lines.medium.com/diffusion-models-from-scratch-tutorial-in-100-lines-of-pytorch-code-5dac9f472f1c
 
 """
+import datetime
+
 import torch
 import numpy as np
 from torch import nn
 from tqdm import tqdm
 import torch.utils.data
 import matplotlib.pyplot as plt
-from sklearn.datasets import make_swiss_roll
+from sklearn.datasets import make_swiss_roll, make_circles
 
 
-def sample_batch(size):
+def mvn_sample_batch(size):
+    A = torch.tensor([[0.2, 5], [0.5, 4.0]])
+    cov = torch.matmul(A, A.T)
+    mean = torch.tensor([-1.5, 2.0])
+    dist = torch.distributions.MultivariateNormal(loc=mean, covariance_matrix=cov)
+    sample = dist.sample(torch.Size([size]))
+    return sample.detach().numpy()
+
+
+def circles_sample_batch(size):
+    x, _ = make_circles(n_samples=size, shuffle=True, noise=0.05, random_state=0, factor=0.3)
+    return x
+
+
+def swiss_roll_sample_batch(size):
     x, _ = make_swiss_roll(size)
+    tmp1 = x[:, [2, 0]]
+    tmp2 = x[:, [2, 0]] / 10.0
+    tmp3 = np.array([1, -1])
     return x[:, [2, 0]] / 10.0 * np.array([1, -1])
 
 
@@ -86,40 +105,56 @@ class DiffusionModel(nn.Module):
         return samples
 
 
-def plot(model):
+def plot(model, dataset_name, n_epochs):
     plt.figure(figsize=(10, 6))
-    x0 = sample_batch(5000)
+    N = 5000
+    if dataset_name == "swissroll":
+        x0 = swiss_roll_sample_batch(N)
+    elif dataset_name == "circles":
+        x0 = circles_sample_batch(N)
+    elif dataset_name == "mvn":
+        x0 = mvn_sample_batch(N)
+    else:
+        raise ValueError(f'invalid dataset-name : {dataset_name}')
     x20 = model.forward_process(torch.from_numpy(x0).to(device), 20)[-1].data.cpu().numpy()
     x40 = model.forward_process(torch.from_numpy(x0).to(device), 40)[-1].data.cpu().numpy()
     data = [x0, x20, x40]
+    # original data
     for i, t in enumerate([0, 20, 39]):
         plt.subplot(2, 3, 1 + i)
         plt.scatter(data[i][:, 0], data[i][:, 1], alpha=.1, s=1)
-        plt.xlim([-2, 2])
-        plt.ylim([-2, 2])
+        #plt.xlim([-2, 2])
+        #plt.ylim([-2, 2])
         plt.gca().set_aspect('equal')
         if t == 0: plt.ylabel(r'$q(\mathbf{x}^{(0...T)})$', fontsize=17, rotation=0, labelpad=60)
         if i == 0: plt.title(r'$t=0$', fontsize=17)
         if i == 1: plt.title(r'$t=\frac{T}{2}$', fontsize=17)
         if i == 2: plt.title(r'$t=T$', fontsize=17)
-
+    # sampled data
     samples = model.sample(5000, device)
     for i, t in enumerate([0, 20, 40]):
         plt.subplot(2, 3, 4 + i)
         plt.scatter(samples[40 - t][:, 0].data.cpu().numpy(), samples[40 - t][:, 1].data.cpu().numpy(),
                     alpha=.1, s=1, c='r')
-        plt.xlim([-2, 2])
-        plt.ylim([-2, 2])
+        #plt.xlim([-2, 2])
+        #plt.ylim([-2, 2])
         plt.gca().set_aspect('equal')
         if t == 0: plt.ylabel(r'$p(\mathbf{x}^{(0...T)})$', fontsize=17, rotation=0, labelpad=60)
-    plt.savefig(f"Imgs/diffusion_model.png", bbox_inches='tight')
+    plt.savefig(f"Imgs/diffusion_model_{dataset_name}_npochs_{n_epochs}.png", bbox_inches='tight')
     plt.close()
 
 
-def train(model, optimizer, nb_epochs=100, batch_size=64_000):
+def train(model, optimizer, nb_epochs, batch_size, dataset_name):
     training_loss = []
     for _ in tqdm(range(nb_epochs)):
-        x0 = torch.from_numpy(sample_batch(batch_size)).float().to(device)
+        if dataset_name == "swissroll":
+            x0 = torch.from_numpy(swiss_roll_sample_batch(batch_size)).float().to(device)
+        elif dataset_name == "circles":
+            x0 = torch.from_numpy(circles_sample_batch(batch_size)).float().to(device)
+        elif dataset_name == "mvn":
+            x0 = torch.from_numpy(mvn_sample_batch(batch_size)).float().to(device)
+        else:
+            raise ValueError(f'invalid dataset = {dataset_name}')
         t = np.random.randint(2, 40 + 1)
         mu_posterior, sigma_posterior, xt = model.forward_process(x0, t)
         mu, sigma, _ = model.reverse(xt, t)
@@ -135,9 +170,31 @@ def train(model, optimizer, nb_epochs=100, batch_size=64_000):
 
 
 if __name__ == "__main__":
+    dataset_name = "circles"
+    n_epochs = int(10)
+    batch_size = 64_000
+    assert dataset_name in ["swissroll", "circles", "blobs", "mvn"]
+    print(f'Training params: dataset = {dataset_name},n_epochs= {n_epochs} , batch_size = {batch_size}')
+    #
     device = torch.device('cuda')
+    start_time = datetime.datetime.now()
     model_mlp = MLP(hidden_dim=128).to(device)
     model = DiffusionModel(model_mlp)
     optimizer = torch.optim.Adam(model_mlp.parameters(), lr=1e-4)
-    train(model, optimizer)
-    plot(model)
+
+    train(model=model, optimizer=optimizer, nb_epochs=n_epochs, batch_size=64_000, dataset_name=dataset_name)
+    plot(model=model, dataset_name=dataset_name, n_epochs=n_epochs)
+    end_time = datetime.datetime.now()
+    print(f'Dataset-name = {dataset_name},device = {device}, n-epochs = {n_epochs},batch_size = {batch_size} => '
+          f'training {(end_time - start_time).seconds} sec')
+
+    """
+    Run dump
+    dataset : roll
+    /home/mbaddar/mbaddar/phd/lrgen/venv/bin/python /home/mbaddar/mbaddar/phd/lrgen/sandbox/
+    diffmodel/diffusion_models.py 
+    100%|██████████| 150000/150000 [1:00:39<00:00, 41.22it/s]
+    Device = cuda, n-epochs = 150000,batch_size = 64000 => training 3641 sec
+    ---
+    
+    """
