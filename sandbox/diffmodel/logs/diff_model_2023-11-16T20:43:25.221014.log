@@ -1,0 +1,60 @@
+2023-11-16 20:43:26,858 - diff-model - INFO - Starting training at 2023-11-16 20:43:25.221247 with device = cuda
+params: dataset = mvn,n_epochs= 10000 batch_size = 64000
+Model = DiffusionModel(
+  (model): MLP(
+    (network_head): Sequential(
+      (0): Linear(in_features=2, out_features=128, bias=True)
+      (1): ReLU()
+      (2): Linear(in_features=128, out_features=128, bias=True)
+      (3): ReLU()
+    )
+    (network_tail): ModuleList(
+      (0-39): 40 x Sequential(
+        (0): Linear(in_features=128, out_features=128, bias=True)
+        (1): ReLU()
+        (2): Linear(in_features=128, out_features=4, bias=True)
+      )
+    )
+  )
+)
+2023-11-16 20:43:27,339 - diff-model - INFO - loss formula = KL = (torch.log(sigma) - torch.log(sigma_posterior) + (sigma_posterior ** 2 + (mu_posterior - mu) ** 2) / (
+                2 * sigma ** 2) - 0.5)
+        
+2023-11-16 20:43:27,339 - diff-model - INFO - at i = 0 ,with window  = 1000 KL loss avg  = 16.33609962463379
+2023-11-16 20:43:43,024 - diff-model - INFO - loss formula = KL = (torch.log(sigma) - torch.log(sigma_posterior) + (sigma_posterior ** 2 + (mu_posterior - mu) ** 2) / (
+                2 * sigma ** 2) - 0.5)
+        
+2023-11-16 20:43:43,024 - diff-model - INFO - at i = 1000 ,with window  = 1000 KL loss avg  = 8.255278943004189
+2023-11-16 20:43:59,908 - diff-model - INFO - loss formula = KL = (torch.log(sigma) - torch.log(sigma_posterior) + (sigma_posterior ** 2 + (mu_posterior - mu) ** 2) / (
+                2 * sigma ** 2) - 0.5)
+        
+2023-11-16 20:43:59,908 - diff-model - INFO - at i = 2000 ,with window  = 1000 KL loss avg  = 4.197783254719638
+2023-11-16 20:44:16,559 - diff-model - INFO - loss formula = KL = (torch.log(sigma) - torch.log(sigma_posterior) + (sigma_posterior ** 2 + (mu_posterior - mu) ** 2) / (
+                2 * sigma ** 2) - 0.5)
+        
+2023-11-16 20:44:16,559 - diff-model - INFO - at i = 3000 ,with window  = 1000 KL loss avg  = 3.8360542743117896
+2023-11-16 20:44:33,165 - diff-model - INFO - loss formula = KL = (torch.log(sigma) - torch.log(sigma_posterior) + (sigma_posterior ** 2 + (mu_posterior - mu) ** 2) / (
+                2 * sigma ** 2) - 0.5)
+        
+2023-11-16 20:44:33,166 - diff-model - INFO - at i = 4000 ,with window  = 1000 KL loss avg  = 3.6154505335516505
+2023-11-16 20:44:49,695 - diff-model - INFO - loss formula = KL = (torch.log(sigma) - torch.log(sigma_posterior) + (sigma_posterior ** 2 + (mu_posterior - mu) ** 2) / (
+                2 * sigma ** 2) - 0.5)
+        
+2023-11-16 20:44:49,695 - diff-model - INFO - at i = 5000 ,with window  = 1000 KL loss avg  = 3.2868398612553067
+2023-11-16 20:45:06,380 - diff-model - INFO - loss formula = KL = (torch.log(sigma) - torch.log(sigma_posterior) + (sigma_posterior ** 2 + (mu_posterior - mu) ** 2) / (
+                2 * sigma ** 2) - 0.5)
+        
+2023-11-16 20:45:06,380 - diff-model - INFO - at i = 6000 ,with window  = 1000 KL loss avg  = 2.7747600627328075
+2023-11-16 20:45:23,701 - diff-model - INFO - loss formula = KL = (torch.log(sigma) - torch.log(sigma_posterior) + (sigma_posterior ** 2 + (mu_posterior - mu) ** 2) / (
+                2 * sigma ** 2) - 0.5)
+        
+2023-11-16 20:45:23,701 - diff-model - INFO - at i = 7000 ,with window  = 1000 KL loss avg  = 2.237740124360873
+2023-11-16 20:45:40,472 - diff-model - INFO - loss formula = KL = (torch.log(sigma) - torch.log(sigma_posterior) + (sigma_posterior ** 2 + (mu_posterior - mu) ** 2) / (
+                2 * sigma ** 2) - 0.5)
+        
+2023-11-16 20:45:40,472 - diff-model - INFO - at i = 8000 ,with window  = 1000 KL loss avg  = 1.7790325162792717
+2023-11-16 20:45:57,084 - diff-model - INFO - loss formula = KL = (torch.log(sigma) - torch.log(sigma_posterior) + (sigma_posterior ** 2 + (mu_posterior - mu) ** 2) / (
+                2 * sigma ** 2) - 0.5)
+        
+2023-11-16 20:45:57,084 - diff-model - INFO - at i = 9000 ,with window  = 1000 KL loss avg  = 1.5994603690783402
+2023-11-16 20:46:24,112 - diff-model - INFO - Training finished in 178 seconds

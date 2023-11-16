@@ -217,11 +217,8 @@ if __name__ == "__main__":
     stride = 1_000
     batch_size = 64_000
     assert dataset_name in ["swissroll", "circles", "blobs", "mvn"]
-
     device = torch.device('cuda')
-
     start_time = datetime.now()
-
     model_mlp = MLP(hidden_dim=128).to(device)
     model = DiffusionModel(model_mlp)
     logger.info(
@@ -234,7 +231,7 @@ if __name__ == "__main__":
     training_losses = train(model=model, optimizer=optimizer, nb_epochs=n_epochs, batch_size=64_000,
                             dataset_name=dataset_name, window=loss_window, stride=stride)
     plot(model=model, dataset_name=dataset_name, n_epochs=n_epochs, training_losses=training_losses,
-         window=loss_window, )
+         window=loss_window, run_timestamp=run_timestamp)
     end_time = datetime.now()
     logger.info(f'Training finished in {(end_time - start_time).seconds} seconds')
     save_model(model=model_mlp, dataset_name=dataset_name, run_timestamp=run_timestamp, nepochs=n_epochs)
