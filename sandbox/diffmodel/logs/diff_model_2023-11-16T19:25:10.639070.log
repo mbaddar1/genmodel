@@ -1,0 +1,35 @@
+2023-11-16 19:25:12,207 - diff-model - INFO - Starting training at 2023-11-16 19:25:10.639178 with device = cuda
+params: dataset = swissroll,n_epochs= 150000 batch_size = 64000
+Model = DiffusionModel(
+  (model): MLP(
+    (network_head): Sequential(
+      (0): Linear(in_features=2, out_features=128, bias=True)
+      (1): ReLU()
+      (2): Linear(in_features=128, out_features=128, bias=True)
+      (3): ReLU()
+    )
+    (network_tail): ModuleList(
+      (0-39): 40 x Sequential(
+        (0): Linear(in_features=128, out_features=128, bias=True)
+        (1): ReLU()
+        (2): Linear(in_features=128, out_features=4, bias=True)
+      )
+    )
+  )
+)
+2023-11-16 19:25:12,564 - diff-model - INFO - at i = 0 ,with window  = 10000 loss avg  = 1.0008208751678467
+2023-11-16 19:29:16,641 - diff-model - INFO - at i = 10000 ,with window  = 10000 loss avg  = 1.20762840100848
+2023-11-16 19:33:25,959 - diff-model - INFO - at i = 20000 ,with window  = 10000 loss avg  = 0.6164768419952222
+2023-11-16 19:37:30,196 - diff-model - INFO - at i = 30000 ,with window  = 10000 loss avg  = 0.5828576301223691
+2023-11-16 19:41:24,667 - diff-model - INFO - at i = 40000 ,with window  = 10000 loss avg  = 0.5543022731781728
+2023-11-16 19:45:19,645 - diff-model - INFO - at i = 50000 ,with window  = 10000 loss avg  = 0.5479498185906805
+2023-11-16 19:49:13,666 - diff-model - INFO - at i = 60000 ,with window  = 10000 loss avg  = 0.5415820610289818
+2023-11-16 19:53:12,620 - diff-model - INFO - at i = 70000 ,with window  = 10000 loss avg  = 0.5282908216923022
+2023-11-16 19:57:08,365 - diff-model - INFO - at i = 80000 ,with window  = 10000 loss avg  = 0.5193504153497088
+2023-11-16 20:01:03,612 - diff-model - INFO - at i = 90000 ,with window  = 10000 loss avg  = 0.527870269047461
+2023-11-16 20:04:58,017 - diff-model - INFO - at i = 100000 ,with window  = 10000 loss avg  = 0.5029692829385839
+2023-11-16 20:08:52,737 - diff-model - INFO - at i = 110000 ,with window  = 10000 loss avg  = 0.5092658973392555
+2023-11-16 20:12:46,956 - diff-model - INFO - at i = 120000 ,with window  = 10000 loss avg  = 0.5146545872698175
+2023-11-16 20:16:42,792 - diff-model - INFO - at i = 130000 ,with window  = 10000 loss avg  = 0.4844040082013112
+2023-11-16 20:20:46,238 - diff-model - INFO - at i = 140000 ,with window  = 10000 loss avg  = 0.489233019550387
+2023-11-16 20:25:40,195 - diff-model - INFO - Training finished in 3629 seconds

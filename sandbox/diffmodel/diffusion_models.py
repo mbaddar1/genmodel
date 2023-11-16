@@ -18,6 +18,16 @@ import matplotlib.pyplot as plt
 from sklearn.datasets import make_swiss_roll, make_circles
 from datetime import datetime
 
+run_timestamp = datetime.now().isoformat()  # run version
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger('diff-model')
+logger.setLevel(logging.INFO)
+
+# create file handler which logs even debug messages
+fh = logging.FileHandler(f'logs/diff_model_{run_timestamp}.log')
+
+
+#
 
 def mvn_sample_batch(size):
     A = torch.tensor([[0.2, 5], [0.5, 4.0]])
@@ -42,7 +52,7 @@ class MLP(nn.Module):
 
     def __init__(self, N=40, data_dim=2, hidden_dim=64):
         super(MLP, self).__init__()
-
+        self.name = "nn_head_tail"
         self.network_head = nn.Sequential(nn.Linear(data_dim, hidden_dim), nn.ReLU(),
                                           nn.Linear(hidden_dim, hidden_dim), nn.ReLU(), )
         self.network_tail = nn.ModuleList([nn.Sequential(nn.Linear(hidden_dim, hidden_dim),
@@ -105,7 +115,8 @@ class DiffusionModel(nn.Module):
         return samples
 
 
-def plot(model: torch.nn.Module, dataset_name: str, n_epochs: int, training_losses: List[float], window: int):
+def plot(model: torch.nn.Module, dataset_name: str, n_epochs: int, training_losses: List[float], window: int,
+         run_timestamp: str):
     plt.figure(figsize=(10, 6))
     N = 5000
     if dataset_name == "swissroll":
@@ -140,7 +151,7 @@ def plot(model: torch.nn.Module, dataset_name: str, n_epochs: int, training_loss
         # plt.ylim([-2, 2])
         plt.gca().set_aspect('equal')
         if t == 0: plt.ylabel(r'$p(\mathbf{x}^{(0...T)})$', fontsize=17, rotation=0, labelpad=60)
-    plt.savefig(f"Imgs/diffusion_model_{dataset_name}_nepochs_{n_epochs}.png", bbox_inches='tight')
+    plt.savefig(f"Imgs/diffusion_model_{dataset_name}_nepochs_{n_epochs}_{run_timestamp}.png", bbox_inches='tight')
     plt.clf()
     plt.title('loss curve')
     plt.xlabel('iter')
@@ -150,13 +161,13 @@ def plot(model: torch.nn.Module, dataset_name: str, n_epochs: int, training_loss
         start = max(i - window, 0)
         end = i
         training_losses[i] = np.mean(training_losses[start:end])
-    plt.savefig(f'loss_curve/loss_curve_{dataset_name}_nepochs_{n_epochs}')
+    plt.savefig(f'loss_curve/loss_curve_{dataset_name}_nepochs_{n_epochs}_{run_timestamp}.png')
     plt.close()
 
 
-def train(model, optimizer, nb_epochs, batch_size, dataset_name):
+def train(model, optimizer, nb_epochs, batch_size, dataset_name, window, stride):
     training_losses = []
-    for _ in tqdm(range(nb_epochs)):
+    for i in tqdm(range(nb_epochs)):
         if dataset_name == "swissroll":
             x0 = torch.from_numpy(swiss_roll_sample_batch(batch_size)).float().to(device)
         elif dataset_name == "circles":
@@ -171,60 +182,59 @@ def train(model, optimizer, nb_epochs, batch_size, dataset_name):
 
         KL = (torch.log(sigma) - torch.log(sigma_posterior) + (sigma_posterior ** 2 + (mu_posterior - mu) ** 2) / (
                 2 * sigma ** 2) - 0.5)
+        loss_formula_str = """KL = (torch.log(sigma) - torch.log(sigma_posterior) + (sigma_posterior ** 2 + (mu_posterior - mu) ** 2) / (
+                2 * sigma ** 2) - 0.5)
+        """
         loss = KL.mean()
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         training_losses.append(loss.item())
-
+        # checkpoint
+        if i % stride == 0:
+            start = max(0, i - window)
+            loss_avg = np.average(training_losses[start:(i + 1)])
+            logger.info(f"loss formula = {loss_formula_str}")
+            logger.info(f'at i = {i} ,with window  = {window} KL loss avg  = {loss_avg}')
+            for handler in logger.handlers:
+                handler.flush()
     return training_losses
 
 
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('diff-model')
-logger.setLevel(logging.INFO)
+def save_model(model: torch.nn.Module, dataset_name: str, nepochs: int, run_timestamp: str):
+    assert hasattr(model, "name"), "model must have name for saving"
+    torch.save(model.state_dict(), f"./models/{model.name}_{dataset_name}_nepochs_{nepochs}_{run_timestamp}.model")
 
-# create file handler which logs even debug messages
-fh = logging.FileHandler(f'logs/diff_model_{datetime.now().isoformat()}.log')
+
 fh.setLevel(logging.INFO)
 fh.setFormatter(formatter)
 logger.addHandler(fh)
 
 if __name__ == "__main__":
-    dataset_name = "swissroll"
-    n_epochs = int(10)
-    loss_window = 3000
+    dataset_name = "mvn"
+    n_epochs = int(10_000)
+    loss_window = 1_000
+    stride = 1_000
     batch_size = 64_000
     assert dataset_name in ["swissroll", "circles", "blobs", "mvn"]
 
-    device = torch.device('cpu')
+    device = torch.device('cuda')
 
     start_time = datetime.now()
 
     model_mlp = MLP(hidden_dim=128).to(device)
     model = DiffusionModel(model_mlp)
     logger.info(
-        f'Starting training at {start_time} \n'
+        f'Starting training at {start_time} with device = {device}\n'
         f'params: dataset = {dataset_name},n_epochs= {n_epochs} batch_size = {batch_size}\n'
         f'Model = {str(model)}')
+    fh.flush()
     optimizer = torch.optim.Adam(model_mlp.parameters(), lr=1e-4)
 
     training_losses = train(model=model, optimizer=optimizer, nb_epochs=n_epochs, batch_size=64_000,
-                            dataset_name=dataset_name)
-    plot(model=model, dataset_name=dataset_name, n_epochs=n_epochs, training_losses=training_losses, window=loss_window)
+                            dataset_name=dataset_name, window=loss_window, stride=stride)
+    plot(model=model, dataset_name=dataset_name, n_epochs=n_epochs, training_losses=training_losses,
+         window=loss_window, )
     end_time = datetime.now()
     logger.info(f'Training finished in {(end_time - start_time).seconds} seconds')
-
-    """
-    Run dump
-    dataset : swissroll
-    /home/mbaddar/mbaddar/phd/lrgen/venv/bin/python /home/mbaddar/mbaddar/phd/lrgen/sandbox/
-    diffmodel/diffusion_models.py 
-    100%|██████████| 150000/150000 [1:00:39<00:00, 41.22it/s]
-    Device = cuda, n-epochs = 150000,batch_size = 64000 => training 3641 sec
-    ---
-    /home/mbaddar/mbaddar/phd/lrgen/venv/bin/python /home/mbaddar/mbaddar/phd/lrgen/sandbox/diffmodel/diffusion_models.py 
-    Training params: dataset = mvn,n_epochs= 5000 , batch_size = 64000
-    100%|██████████| 5000/5000 [01:26<00:00, 57.90it/s]
-    Dataset-name = mvn,device = cuda, n-epochs = 5000,batch_size = 64000 => training 89 sec
-    """
+    save_model(model=model_mlp, dataset_name=dataset_name, run_timestamp=run_timestamp, nepochs=n_epochs)
