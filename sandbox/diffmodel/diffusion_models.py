@@ -123,8 +123,8 @@ def plot(model, dataset_name, n_epochs):
     for i, t in enumerate([0, 20, 39]):
         plt.subplot(2, 3, 1 + i)
         plt.scatter(data[i][:, 0], data[i][:, 1], alpha=.1, s=1)
-        #plt.xlim([-2, 2])
-        #plt.ylim([-2, 2])
+        # plt.xlim([-2, 2])
+        # plt.ylim([-2, 2])
         plt.gca().set_aspect('equal')
         if t == 0: plt.ylabel(r'$q(\mathbf{x}^{(0...T)})$', fontsize=17, rotation=0, labelpad=60)
         if i == 0: plt.title(r'$t=0$', fontsize=17)
@@ -136,8 +136,8 @@ def plot(model, dataset_name, n_epochs):
         plt.subplot(2, 3, 4 + i)
         plt.scatter(samples[40 - t][:, 0].data.cpu().numpy(), samples[40 - t][:, 1].data.cpu().numpy(),
                     alpha=.1, s=1, c='r')
-        #plt.xlim([-2, 2])
-        #plt.ylim([-2, 2])
+        # plt.xlim([-2, 2])
+        # plt.ylim([-2, 2])
         plt.gca().set_aspect('equal')
         if t == 0: plt.ylabel(r'$p(\mathbf{x}^{(0...T)})$', fontsize=17, rotation=0, labelpad=60)
     plt.savefig(f"Imgs/diffusion_model_{dataset_name}_npochs_{n_epochs}.png", bbox_inches='tight')
@@ -170,8 +170,8 @@ def train(model, optimizer, nb_epochs, batch_size, dataset_name):
 
 
 if __name__ == "__main__":
-    dataset_name = "mvn"
-    n_epochs = int(5000)
+    dataset_name = "circles"
+    n_epochs = int(300_000)
     batch_size = 64_000
     assert dataset_name in ["swissroll", "circles", "blobs", "mvn"]
     print(f'Training params: dataset = {dataset_name},n_epochs= {n_epochs} , batch_size = {batch_size}')
@@ -190,11 +190,14 @@ if __name__ == "__main__":
 
     """
     Run dump
-    dataset : roll
+    dataset : swissroll
     /home/mbaddar/mbaddar/phd/lrgen/venv/bin/python /home/mbaddar/mbaddar/phd/lrgen/sandbox/
     diffmodel/diffusion_models.py 
     100%|██████████| 150000/150000 [1:00:39<00:00, 41.22it/s]
     Device = cuda, n-epochs = 150000,batch_size = 64000 => training 3641 sec
     ---
-    
+    /home/mbaddar/mbaddar/phd/lrgen/venv/bin/python /home/mbaddar/mbaddar/phd/lrgen/sandbox/diffmodel/diffusion_models.py 
+    Training params: dataset = mvn,n_epochs= 5000 , batch_size = 64000
+    100%|██████████| 5000/5000 [01:26<00:00, 57.90it/s]
+    Dataset-name = mvn,device = cuda, n-epochs = 5000,batch_size = 64000 => training 89 sec
     """
