@@ -6,6 +6,8 @@ https://papers-100-lines.medium.com/diffusion-models-from-scratch-tutorial-in-10
 
 """
 import datetime
+import logging
+from typing import List
 
 import torch
 import numpy as np
@@ -14,6 +16,7 @@ from tqdm import tqdm
 import torch.utils.data
 import matplotlib.pyplot as plt
 from sklearn.datasets import make_swiss_roll, make_circles
+from datetime import datetime
 
 
 def mvn_sample_batch(size):
@@ -32,9 +35,6 @@ def circles_sample_batch(size):
 
 def swiss_roll_sample_batch(size):
     x, _ = make_swiss_roll(size)
-    tmp1 = x[:, [2, 0]]
-    tmp2 = x[:, [2, 0]] / 10.0
-    tmp3 = np.array([1, -1])
     return x[:, [2, 0]] / 10.0 * np.array([1, -1])
 
 
@@ -105,7 +105,7 @@ class DiffusionModel(nn.Module):
         return samples
 
 
-def plot(model, dataset_name, n_epochs):
+def plot(model: torch.nn.Module, dataset_name: str, n_epochs: int, training_losses: List[float], window: int):
     plt.figure(figsize=(10, 6))
     N = 5000
     if dataset_name == "swissroll":
@@ -140,12 +140,22 @@ def plot(model, dataset_name, n_epochs):
         # plt.ylim([-2, 2])
         plt.gca().set_aspect('equal')
         if t == 0: plt.ylabel(r'$p(\mathbf{x}^{(0...T)})$', fontsize=17, rotation=0, labelpad=60)
-    plt.savefig(f"Imgs/diffusion_model_{dataset_name}_npochs_{n_epochs}.png", bbox_inches='tight')
+    plt.savefig(f"Imgs/diffusion_model_{dataset_name}_nepochs_{n_epochs}.png", bbox_inches='tight')
+    plt.clf()
+    plt.title('loss curve')
+    plt.xlabel('iter')
+    plt.ylabel('loss')
+    plt.plot(list(np.arange(1, len(training_losses) + 1)), training_losses)
+    for i in range(len(training_losses)):
+        start = max(i - window, 0)
+        end = i
+        training_losses[i] = np.mean(training_losses[start:end])
+    plt.savefig(f'loss_curve/loss_curve_{dataset_name}_nepochs_{n_epochs}')
     plt.close()
 
 
 def train(model, optimizer, nb_epochs, batch_size, dataset_name):
-    training_loss = []
+    training_losses = []
     for _ in tqdm(range(nb_epochs)):
         if dataset_name == "swissroll":
             x0 = torch.from_numpy(swiss_roll_sample_batch(batch_size)).float().to(device)
@@ -162,31 +172,48 @@ def train(model, optimizer, nb_epochs, batch_size, dataset_name):
         KL = (torch.log(sigma) - torch.log(sigma_posterior) + (sigma_posterior ** 2 + (mu_posterior - mu) ** 2) / (
                 2 * sigma ** 2) - 0.5)
         loss = KL.mean()
-
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        training_loss.append(loss.item())
+        training_losses.append(loss.item())
 
+    return training_losses
+
+
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger('diff-model')
+logger.setLevel(logging.INFO)
+
+# create file handler which logs even debug messages
+fh = logging.FileHandler(f'logs/diff_model_{datetime.now().isoformat()}.log')
+fh.setLevel(logging.INFO)
+fh.setFormatter(formatter)
+logger.addHandler(fh)
 
 if __name__ == "__main__":
-    dataset_name = "circles"
-    n_epochs = int(300_000)
+    dataset_name = "swissroll"
+    n_epochs = int(10)
+    loss_window = 3000
     batch_size = 64_000
     assert dataset_name in ["swissroll", "circles", "blobs", "mvn"]
-    print(f'Training params: dataset = {dataset_name},n_epochs= {n_epochs} , batch_size = {batch_size}')
-    #
-    device = torch.device('cuda')
-    start_time = datetime.datetime.now()
+
+    device = torch.device('cpu')
+
+    start_time = datetime.now()
+
     model_mlp = MLP(hidden_dim=128).to(device)
     model = DiffusionModel(model_mlp)
+    logger.info(
+        f'Starting training at {start_time} \n'
+        f'params: dataset = {dataset_name},n_epochs= {n_epochs} batch_size = {batch_size}\n'
+        f'Model = {str(model)}')
     optimizer = torch.optim.Adam(model_mlp.parameters(), lr=1e-4)
 
-    train(model=model, optimizer=optimizer, nb_epochs=n_epochs, batch_size=64_000, dataset_name=dataset_name)
-    plot(model=model, dataset_name=dataset_name, n_epochs=n_epochs)
-    end_time = datetime.datetime.now()
-    print(f'Dataset-name = {dataset_name},device = {device}, n-epochs = {n_epochs},batch_size = {batch_size} => '
-          f'training {(end_time - start_time).seconds} sec')
+    training_losses = train(model=model, optimizer=optimizer, nb_epochs=n_epochs, batch_size=64_000,
+                            dataset_name=dataset_name)
+    plot(model=model, dataset_name=dataset_name, n_epochs=n_epochs, training_losses=training_losses, window=loss_window)
+    end_time = datetime.now()
+    logger.info(f'Training finished in {(end_time - start_time).seconds} seconds')
 
     """
     Run dump
