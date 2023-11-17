@@ -167,7 +167,7 @@ def plot(model: torch.nn.Module, dataset_name: str, n_epochs: int, training_loss
 
 def train(model, optimizer, nb_epochs, batch_size, dataset_name, window, stride):
     training_losses = []
-    for i in tqdm(range(nb_epochs)):
+    for i in tqdm(range(nb_epochs + 1)):
         if dataset_name == "swissroll":
             x0 = torch.from_numpy(swiss_roll_sample_batch(batch_size)).float().to(device)
         elif dataset_name == "circles":
@@ -182,9 +182,8 @@ def train(model, optimizer, nb_epochs, batch_size, dataset_name, window, stride)
 
         KL = (torch.log(sigma) - torch.log(sigma_posterior) + (sigma_posterior ** 2 + (mu_posterior - mu) ** 2) / (
                 2 * sigma ** 2) - 0.5)
-        loss_formula_str = """KL = (torch.log(sigma) - torch.log(sigma_posterior) + (sigma_posterior ** 2 + (mu_posterior - mu) ** 2) / (
-                2 * sigma ** 2) - 0.5)
-        """
+        loss_formula_str = """KL = (torch.log(sigma) - torch.log(sigma_posterior) + (sigma_posterior ** 2 + 
+                            (mu_posterior - mu) ** 2) / (2 * sigma ** 2) - 0.5)"""
         loss = KL.mean()
         optimizer.zero_grad()
         loss.backward()
@@ -211,10 +210,10 @@ fh.setFormatter(formatter)
 logger.addHandler(fh)
 
 if __name__ == "__main__":
-    dataset_name = "mvn"
-    n_epochs = int(10_000)
-    loss_window = 1_000
-    stride = 1_000
+    dataset_name = "swissroll"
+    n_epochs = int(300_000)
+    loss_window = 10_000
+    stride = 10_000
     batch_size = 64_000
     assert dataset_name in ["swissroll", "circles", "blobs", "mvn"]
     device = torch.device('cuda')
