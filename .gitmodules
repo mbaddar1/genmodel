@@ -1,0 +1,3 @@
+[submodule "DDPM"]
+	path = DDPM
+	url = git@github.com:mbaddar1/DDPM.git

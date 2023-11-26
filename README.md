@@ -1,3 +1,1 @@
-# lrgen
-Low-rank Generative Model Experiments 
-The PhD Experimentes Repo
+# Repo for different Generative Modeling work related to my PhD
