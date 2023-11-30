@@ -7,6 +7,7 @@ https://papers-100-lines.medium.com/diffusion-models-from-scratch-tutorial-in-10
 """
 import datetime
 import logging
+import os.path
 from typing import List
 
 import torch
@@ -165,9 +166,21 @@ def plot(model: torch.nn.Module, dataset_name: str, n_epochs: int, training_loss
     plt.close()
 
 
-def train(model, optimizer, nb_epochs, batch_size, dataset_name, window, stride):
+def dump_checkpoint(model: torch.nn.Module, optimizer, epoch: int, train_time_sec: int, loss_formula_str: str,
+                    loss_window: int,
+                    loss_avg: float, checkpoint_out_dir: str):
+    out_path = os.path.join(checkpoint_out_dir, f"epoch_{epoch}.pt")
+    checkpoint_dict = {'epoch': epoch, 'optimizer_state_dict': optimizer.state_dict(),
+                       'model_state_dict': model.state_dict(), 'loss_avg': loss_avg, 'train_time_sec': train_time_sec,
+                       'loss_formula_str': loss_formula_str, 'loss_window': loss_window,
+                       'timestamp': datetime.now().isoformat()}
+    torch.save(obj=checkpoint_dict, f=out_path)
+
+
+def train(model, optimizer, start_epoch, init_train_time, nb_epochs, batch_size, dataset_name, window,
+          checkpoint_epoch_count, checkpoint_out_dir):
     training_losses = []
-    for i in tqdm(range(nb_epochs + 1)):
+    for i in tqdm(range(nb_epochs)):
         if dataset_name == "swissroll":
             x0 = torch.from_numpy(swiss_roll_sample_batch(batch_size)).float().to(device)
         elif dataset_name == "circles":
@@ -190,13 +203,18 @@ def train(model, optimizer, nb_epochs, batch_size, dataset_name, window, stride)
         optimizer.step()
         training_losses.append(loss.item())
         # checkpoint
-        if i % stride == 0:
+        start_time = datetime.now()
+        if i % checkpoint_epoch_count == 0 and i > 0:
             start = max(0, i - window)
             loss_avg = np.average(training_losses[start:(i + 1)])
-            logger.info(f"loss formula = {loss_formula_str}")
-            logger.info(f'at i = {i} ,with window  = {window} KL loss avg  = {loss_avg}')
-            for handler in logger.handlers:
-                handler.flush()
+            dump_checkpoint(model=model_mlp, optimizer=optimizer, epoch=start_epoch + i,
+                            train_time_sec=init_train_time + (datetime.now() - start_time).seconds,
+                            loss_window=window, loss_formula_str=loss_formula_str, loss_avg=loss_avg,
+                            checkpoint_out_dir=checkpoint_out_dir)
+            # logger.info(f"loss formula = {loss_formula_str}")
+            # logger.info(f'at i = {i} ,with window  = {window} KL loss avg  = {loss_avg}')
+            # for handler in logger.handlers:
+            #    handler.flush()
     return training_losses
 
 
@@ -210,27 +228,37 @@ fh.setFormatter(formatter)
 logger.addHandler(fh)
 
 if __name__ == "__main__":
-    dataset_name = "swissroll"
-    n_epochs = int(300_000)
+    dataset_name = "mvn"
+    input_checkpoint_file_path = None
+    out_check_point_path = "checkpoints/nn_head_tail_mvn"
+    n_epochs = int(10_000)+1
     loss_window = 10_000
-    stride = 10_000
+    checkpoint_count = 1000
     batch_size = 64_000
     assert dataset_name in ["swissroll", "circles", "blobs", "mvn"]
-    device = torch.device('cuda')
-    start_time = datetime.now()
-    model_mlp = MLP(hidden_dim=128).to(device)
+    device = torch.device('cpu')
+    if input_checkpoint_file_path is None:
+        model_mlp = MLP(hidden_dim=128).to(device)
+        start_epoch = 0
+        start_time = 0
+        init_train_time = 0
     model = DiffusionModel(model_mlp)
-    logger.info(
-        f'Starting training at {start_time} with device = {device}\n'
-        f'params: dataset = {dataset_name},n_epochs= {n_epochs} batch_size = {batch_size}\n'
-        f'Model = {str(model)}')
-    fh.flush()
-    optimizer = torch.optim.Adam(model_mlp.parameters(), lr=1e-4)
 
+    # fh.flush()
+    optimizer = torch.optim.Adam(model_mlp.parameters(), lr=1e-4)
+    # start_time = datetime.now()
+    # logger.info(
+    #    f'Starting training at {start_time} with device = {device}\n'
+    #    f'params: dataset = {dataset_name},n_epochs= {n_epochs} batch_size = {batch_size}\n'
+    #    f'Model = {str(model)}')
     training_losses = train(model=model, optimizer=optimizer, nb_epochs=n_epochs, batch_size=64_000,
-                            dataset_name=dataset_name, window=loss_window, stride=stride)
+                            dataset_name=dataset_name, window=loss_window, checkpoint_epoch_count=checkpoint_count,
+                            checkpoint_out_dir=out_check_point_path,
+                            start_epoch=start_epoch,
+                            init_train_time=init_train_time)
+    # end_time = datetime.now()
     plot(model=model, dataset_name=dataset_name, n_epochs=n_epochs, training_losses=training_losses,
          window=loss_window, run_timestamp=run_timestamp)
-    end_time = datetime.now()
-    logger.info(f'Training finished in {(end_time - start_time).seconds} seconds')
+
+    # logger.info(f'Training finished in {(end_time - start_time).seconds} seconds')
     save_model(model=model_mlp, dataset_name=dataset_name, run_timestamp=run_timestamp, nepochs=n_epochs)

@@ -1,0 +1,3 @@
+AWS GPU
+https://docs.aws.amazon.com/dlami/latest/devguide/gpu.html
+https://towardsdatascience.com/choosing-the-right-gpu-for-deep-learning-on-aws-d69c157d8c86?gi=86e48802a2cb
