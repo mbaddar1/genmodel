@@ -3,13 +3,13 @@ Copied From
 https://github.com/MaximeVandegar/Papers-in-100-Lines-of-Code/blob/main/Deep_Unsupervised_Learning_using_Nonequilibrium_Thermodynamics/diffusion_models.py
 as a part of this tutorial
 https://papers-100-lines.medium.com/diffusion-models-from-scratch-tutorial-in-100-lines-of-pytorch-code-5dac9f472f1c
-
+https://kstathou.medium.com/how-to-set-up-a-gpu-instance-for-machine-learning-on-aws-b4fb8ba51a7c
 """
 import datetime
 import logging
 import os.path
-from typing import List
-
+from typing import List, Union
+from argparse import ArgumentParser
 import torch
 import numpy as np
 from torch import nn
@@ -19,16 +19,24 @@ import matplotlib.pyplot as plt
 from sklearn.datasets import make_swiss_roll, make_circles
 from datetime import datetime
 
+# Logging
 run_timestamp = datetime.now().isoformat()  # run version
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('diff-model')
-logger.setLevel(logging.INFO)
-
-# create file handler which logs even debug messages
-fh = logging.FileHandler(f'logs/diff_model_{run_timestamp}.log')
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('diffusion-model')
 
 
-#
+def delete_files_in_directory(directory_path):
+    try:
+        files = os.listdir(directory_path)
+        for file in tqdm(files, desc="delete old checkpoints"):
+            file_path = os.path.join(directory_path, file)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        print("All files deleted successfully.")
+    except OSError:
+        print("Error occurred while deleting files.")
+
 
 def mvn_sample_batch(size):
     A = torch.tensor([[0.2, 5], [0.5, 4.0]])
@@ -67,10 +75,10 @@ class MLP(nn.Module):
 
 class DiffusionModel(nn.Module):
 
-    def __init__(self, model: nn.Module, n_steps=40, device='cuda'):
+    def __init__(self, core_model: nn.Module, n_steps, device: str):
         super().__init__()
 
-        self.model = model
+        self.core_model = core_model
         self.device = device
 
         betas = torch.linspace(-18, 10, n_steps)
@@ -102,7 +110,7 @@ class DiffusionModel(nn.Module):
 
         t = t - 1  # Start indexing at 0
         if t == 0: return None, None, xt
-        mu, h = self.model(xt, t).chunk(2, dim=1)
+        mu, h = self.core_model(xt, t).chunk(2, dim=1)
         sigma = torch.sqrt(torch.exp(h))
         samples = mu + torch.randn_like(xt) * sigma
         return mu, sigma, samples
@@ -166,21 +174,28 @@ def plot(model: torch.nn.Module, dataset_name: str, n_epochs: int, training_loss
     plt.close()
 
 
-def dump_checkpoint(model: torch.nn.Module, optimizer, epoch: int, train_time_sec: int, loss_formula_str: str,
+def save_checkpoint(core_model: torch.nn.Module, optimizer, epoch: int, train_time_sec: int, loss_formula_str: str,
                     loss_window: int,
-                    loss_avg: float, checkpoint_out_dir: str):
-    out_path = os.path.join(checkpoint_out_dir, f"epoch_{epoch}.pt")
+                    loss_avg: float, checkpoint_out_path_prefix: str, device: str):
+    out_path = os.path.join(checkpoint_out_path_prefix, f"epoch_{epoch}.pt")
     checkpoint_dict = {'epoch': epoch, 'optimizer_state_dict': optimizer.state_dict(),
-                       'model_state_dict': model.state_dict(), 'loss_avg': loss_avg, 'train_time_sec': train_time_sec,
+                       'model_state_dict': core_model.state_dict(), 'loss_avg': loss_avg,
+                       'train_time_sec': train_time_sec,
                        'loss_formula_str': loss_formula_str, 'loss_window': loss_window,
-                       'timestamp': datetime.now().isoformat()}
+                       'timestamp': datetime.now().isoformat(), 'device': device}
     torch.save(obj=checkpoint_dict, f=out_path)
+    logger.info(f"Successfully saved checkpoint : {out_path}")
 
 
-def train(model, optimizer, start_epoch, init_train_time, nb_epochs, batch_size, dataset_name, window,
-          checkpoint_epoch_count, checkpoint_out_dir):
+def train(model, optimizer, last_epoch, last_train_time_point, n_epochs, batch_size, dataset_name, window,
+          checkpoint_epoch_count, checkpoint_out_path_prefix, device: str):
     training_losses = []
-    for i in tqdm(range(nb_epochs)):
+    loss_formula_str = """KL = (torch.log(sigma) - torch.log(sigma_posterior) + (sigma_posterior ** 2 + 
+                                (mu_posterior - mu) ** 2) / (2 * sigma ** 2) - 0.5)"""
+    start_time = datetime.now()
+    start_epoch = last_epoch + 1
+    end_epoch = start_epoch + n_epochs  # exclusive not inclusive
+    for epoch in tqdm(range(start_epoch, end_epoch)):
         if dataset_name == "swissroll":
             x0 = torch.from_numpy(swiss_roll_sample_batch(batch_size)).float().to(device)
         elif dataset_name == "circles":
@@ -195,26 +210,24 @@ def train(model, optimizer, start_epoch, init_train_time, nb_epochs, batch_size,
 
         KL = (torch.log(sigma) - torch.log(sigma_posterior) + (sigma_posterior ** 2 + (mu_posterior - mu) ** 2) / (
                 2 * sigma ** 2) - 0.5)
-        loss_formula_str = """KL = (torch.log(sigma) - torch.log(sigma_posterior) + (sigma_posterior ** 2 + 
-                            (mu_posterior - mu) ** 2) / (2 * sigma ** 2) - 0.5)"""
         loss = KL.mean()
         optimizer.zero_grad()
         loss.backward()
-        optimizer.step()
         training_losses.append(loss.item())
         # checkpoint
-        start_time = datetime.now()
-        if i % checkpoint_epoch_count == 0 and i > 0:
-            start = max(0, i - window)
-            loss_avg = np.average(training_losses[start:(i + 1)])
-            dump_checkpoint(model=model_mlp, optimizer=optimizer, epoch=start_epoch + i,
-                            train_time_sec=init_train_time + (datetime.now() - start_time).seconds,
+        # save checkpoint either at the very start point or later on with the counter policy
+        if epoch == 1 or epoch % checkpoint_epoch_count == 0:
+            start = max(0, epoch - window)
+            loss_avg = np.average(training_losses[start:(epoch + 1)])
+            save_checkpoint(core_model=diffusion_model.core_model, optimizer=optimizer, epoch=epoch,
+                            train_time_sec=last_train_time_point + (datetime.now() - start_time).seconds,
                             loss_window=window, loss_formula_str=loss_formula_str, loss_avg=loss_avg,
-                            checkpoint_out_dir=checkpoint_out_dir)
-            # logger.info(f"loss formula = {loss_formula_str}")
-            # logger.info(f'at i = {i} ,with window  = {window} KL loss avg  = {loss_avg}')
-            # for handler in logger.handlers:
-            #    handler.flush()
+                            checkpoint_out_path_prefix=checkpoint_out_path_prefix, device=device)
+        optimizer.step()
+    per_run_training_time = (datetime.now() - start_time).seconds
+    # remember end-epoch is exclusive not inclusive
+    logger.info(
+        f"Training finished from epoch {start_epoch} to {end_epoch - 1} (inclusive) in {per_run_training_time} seconds")
     return training_losses
 
 
@@ -223,42 +236,75 @@ def save_model(model: torch.nn.Module, dataset_name: str, nepochs: int, run_time
     torch.save(model.state_dict(), f"./models/{model.name}_{dataset_name}_nepochs_{nepochs}_{run_timestamp}.model")
 
 
-fh.setLevel(logging.INFO)
-fh.setFormatter(formatter)
-logger.addHandler(fh)
+def get_args():
+    parser = ArgumentParser()
+    parser.add_argument('--dataset-name', type=str, required=True,
+                        choices=["swissroll", "circles", "blobs", "mvn"])
+    parser.add_argument('--model', type=str, required=True, choices=["nn_head_tail"])
+    parser.add_argument('--n-epochs', type=int, required=True)
+    parser.add_argument('--start-checkpoint-file', type=str, required=False)
+    parser.add_argument('--checkpoint-out-dir', type=str, required=False, default="checkpoints")
+    parser.add_argument('--device', type=str, required=False, choices=["cpu", "gpu"], default="cpu")
+    parser.add_argument('--batch-size', type=int, required=False, default=64000)
+    parser.add_argument('--loss-window', type=int, required=False, default=10000)
+    parser.add_argument('--checkpoint-count', type=int, required=False, default=10000)
+    parser.add_argument('--lr', type=float, required=False, default=0.001)
+    parser.add_argument('--momentum', type=float, required=False, default=0.9)
+    parser.add_argument('--n-diffusion-steps', type=int, required=False, default=40)
+    parser.add_argument('--hidden-dim', required=False, type=int, default=128)
+    args = parser.parse_args()
+    return args
+
 
 if __name__ == "__main__":
-    dataset_name = "mvn"
-    input_checkpoint_file_path = None
-    out_check_point_path = "checkpoints/nn_head_tail_mvn"
-    n_epochs = int(10_000)+1
-    loss_window = 10_000
-    checkpoint_count = 1000
-    batch_size = 64_000
-    assert dataset_name in ["swissroll", "circles", "blobs", "mvn"]
-    device = torch.device('cpu')
-    if input_checkpoint_file_path is None:
-        model_mlp = MLP(hidden_dim=128).to(device)
-        start_epoch = 0
-        start_time = 0
-        init_train_time = 0
-    model = DiffusionModel(model_mlp)
+    logger.info(f"Parsing Args")
+    args = get_args()
+    if args.device == "cpu":
+        device = torch.device("cpu")
+    else:
+        raise ValueError(f"Device {args.device} is not supported")
+    checkpoint_out_dir = os.path.join(args.checkpoint_out_dir, f"{args.model}_{args.dataset_name}")
+    if not os.path.exists(checkpoint_out_dir):
+        os.makedirs(checkpoint_out_dir)
+    if args.start_checkpoint_file is None:
+        logger.info("No check point provided, training from scratch")
+        last_epoch = 0
+        last_train_time_point = 0
+        if args.model == "nn_head_tail":
+            core_model = MLP(hidden_dim=args.hidden_dim).to(device)
+            optimizer = torch.optim.SGD(core_model.parameters(), lr=args.lr, momentum=args.momentum)
+        else:
+            raise ValueError(f"Model : {args.model}")
+    else:
+        logger.info(f"Loading from checkpoint {args.start_checkpoint_file}")
+        checkpoint_dict = torch.load(args.start_checkpoint_file)
+        logger.info(f"Dump of the loaded checkpoint \n:{checkpoint_dict}")
+        last_epoch = checkpoint_dict['epoch']
+        last_train_time_point = checkpoint_dict['train_time_sec']
+        logger.info(f"Last epoch (loaded from checkpoint) ={last_epoch} , starting from epoch = {last_epoch + 1}")
+        if args.model == "nn_head_tail":
+            core_model = MLP(hidden_dim=args.hidden_dim).to(device)
+            optimizer = torch.optim.SGD(core_model.parameters(), lr=args.lr, momentum=args.lr)
+            core_model.load_state_dict(checkpoint_dict['model_state_dict'])
+            optimizer.load_state_dict(checkpoint_dict['optimizer_state_dict'])
+        else:
+            raise ValueError(f"Model Arch : {args.model_arch}")
 
-    # fh.flush()
-    optimizer = torch.optim.Adam(model_mlp.parameters(), lr=1e-4)
-    # start_time = datetime.now()
-    # logger.info(
-    #    f'Starting training at {start_time} with device = {device}\n'
-    #    f'params: dataset = {dataset_name},n_epochs= {n_epochs} batch_size = {batch_size}\n'
-    #    f'Model = {str(model)}')
-    training_losses = train(model=model, optimizer=optimizer, nb_epochs=n_epochs, batch_size=64_000,
-                            dataset_name=dataset_name, window=loss_window, checkpoint_epoch_count=checkpoint_count,
-                            checkpoint_out_dir=out_check_point_path,
-                            start_epoch=start_epoch,
-                            init_train_time=init_train_time)
-    # end_time = datetime.now()
-    plot(model=model, dataset_name=dataset_name, n_epochs=n_epochs, training_losses=training_losses,
-         window=loss_window, run_timestamp=run_timestamp)
+    diffusion_model = DiffusionModel(core_model=core_model, n_steps=args.n_diffusion_steps, device=args.device)
+
+    # Train Model and save checkpoint inside
+    training_losses = train(model=diffusion_model, optimizer=optimizer, n_epochs=args.n_epochs,
+                            batch_size=args.batch_size,
+                            dataset_name=args.dataset_name, window=args.loss_window,
+                            checkpoint_epoch_count=args.checkpoint_count,
+                            checkpoint_out_path_prefix=checkpoint_out_dir,
+                            last_epoch=last_epoch,
+                            last_train_time_point=last_train_time_point, device=args.device)
+
+    # Test a Model
+    # TODO separate testing into another script
+    plot(model=diffusion_model, dataset_name=args.dataset_name, n_epochs=args.n_epochs,
+         training_losses=training_losses, window=args.loss_window, run_timestamp=run_timestamp)
 
     # logger.info(f'Training finished in {(end_time - start_time).seconds} seconds')
-    save_model(model=model_mlp, dataset_name=dataset_name, run_timestamp=run_timestamp, nepochs=n_epochs)
+    # save_model(model=model_arch, dataset_name=dataset_name, run_timestamp=run_timestamp, nepochs=n_epochs)
