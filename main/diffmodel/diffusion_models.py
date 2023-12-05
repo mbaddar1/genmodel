@@ -4,6 +4,10 @@ https://github.com/MaximeVandegar/Papers-in-100-Lines-of-Code/blob/main/Deep_Uns
 as a part of this tutorial
 https://papers-100-lines.medium.com/diffusion-models-from-scratch-tutorial-in-100-lines-of-pytorch-code-5dac9f472f1c
 https://kstathou.medium.com/how-to-set-up-a-gpu-instance-for-machine-learning-on-aws-b4fb8ba51a7c
+
+sample cmd line run
+/home/mbaddar/Documents/mbaddar/phd/genmodel/venv/bin/python /home/mbaddar/Documents/mbaddar/phd/genmodel/main/diffmodel/diffusion_models.py --dataset-name mvn --model nn_head_tail --n-epochs 10_000 --checkpoint-count 1000
+
 """
 import datetime
 import logging
