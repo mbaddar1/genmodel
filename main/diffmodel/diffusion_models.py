@@ -8,7 +8,7 @@ https://kstathou.medium.com/how-to-set-up-a-gpu-instance-for-machine-learning-on
 import datetime
 import logging
 import os.path
-from typing import List, Union
+from typing import List, Union, Iterable
 from argparse import ArgumentParser
 import torch
 import numpy as np
@@ -24,6 +24,20 @@ run_timestamp = datetime.now().isoformat()  # run version
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('diffusion-model')
+
+
+def plot_train_losses(training_losses: Union[List[float] | np.array], dataset_name: str, epoch: int, window: int,
+                      run_timestamp: str):
+    plt.title('loss curve')
+    plt.xlabel('iter')
+    plt.ylabel('loss')
+    plt.plot(list(np.arange(1, len(training_losses) + 1)), training_losses)
+    for i in range(len(training_losses)):
+        start = max(i - window, 0)
+        end = i
+        training_losses[i] = np.mean(training_losses[start:end])
+    plt.savefig(f'loss_curve/loss_curve_{dataset_name}_epoch_{epoch}_{run_timestamp}.png')
+    plt.close()
 
 
 def delete_files_in_directory(directory_path):
@@ -124,8 +138,7 @@ class DiffusionModel(nn.Module):
         return samples
 
 
-def plot(model: torch.nn.Module, dataset_name: str, n_epochs: int, training_losses: List[float], window: int,
-         run_timestamp: str):
+def plot_data(model: torch.nn.Module, dataset_name: str, epoch: int, run_timestamp: str):
     plt.figure(figsize=(10, 6))
     N = 5000
     if dataset_name == "swissroll":
@@ -160,31 +173,22 @@ def plot(model: torch.nn.Module, dataset_name: str, n_epochs: int, training_loss
         # plt.ylim([-2, 2])
         plt.gca().set_aspect('equal')
         if t == 0: plt.ylabel(r'$p(\mathbf{x}^{(0...T)})$', fontsize=17, rotation=0, labelpad=60)
-    plt.savefig(f"Imgs/diffusion_model_{dataset_name}_nepochs_{n_epochs}_{run_timestamp}.png", bbox_inches='tight')
+    plt.savefig(f"Imgs/diffusion_model_{dataset_name}_epoch_{epoch}_{run_timestamp}.png", bbox_inches='tight')
     plt.clf()
-    plt.title('loss curve')
-    plt.xlabel('iter')
-    plt.ylabel('loss')
-    plt.plot(list(np.arange(1, len(training_losses) + 1)), training_losses)
-    for i in range(len(training_losses)):
-        start = max(i - window, 0)
-        end = i
-        training_losses[i] = np.mean(training_losses[start:end])
-    plt.savefig(f'loss_curve/loss_curve_{dataset_name}_nepochs_{n_epochs}_{run_timestamp}.png')
-    plt.close()
 
 
-def save_checkpoint(core_model: torch.nn.Module, optimizer, epoch: int, train_time_sec: int, loss_formula_str: str,
+def save_checkpoint(dataset_name: str, core_model: torch.nn.Module, optimizer, epoch: int, train_time_sec: int,
+                    loss_formula_str: str,
                     loss_window: int,
                     loss_avg: float, checkpoint_out_path_prefix: str, device: str):
     out_path = os.path.join(checkpoint_out_path_prefix, f"epoch_{epoch}.pt")
-    checkpoint_dict = {'epoch': epoch, 'optimizer_state_dict': optimizer.state_dict(),
+    checkpoint_dict = {'epoch': epoch, 'optimizer': str(optimizer), 'optimizer_state_dict': optimizer.state_dict(),
                        'model_state_dict': core_model.state_dict(), 'loss_avg': loss_avg,
                        'train_time_sec': train_time_sec,
                        'loss_formula_str': loss_formula_str, 'loss_window': loss_window,
-                       'timestamp': datetime.now().isoformat(), 'device': device}
+                       'timestamp': datetime.now().isoformat(), 'device': device, 'dataset_name': dataset_name}
     torch.save(obj=checkpoint_dict, f=out_path)
-    logger.info(f"Successfully saved checkpoint : {out_path}")
+    logger.info(f"Successfully saved checkpoint \n: {checkpoint_dict}\n to {out_path}")
 
 
 def train(model, optimizer, last_epoch, last_train_time_point, n_epochs, batch_size, dataset_name, window,
@@ -195,7 +199,7 @@ def train(model, optimizer, last_epoch, last_train_time_point, n_epochs, batch_s
     start_time = datetime.now()
     start_epoch = last_epoch + 1
     end_epoch = start_epoch + n_epochs  # exclusive not inclusive
-    for epoch in tqdm(range(start_epoch, end_epoch)):
+    for i in tqdm(range(n_epochs)):
         if dataset_name == "swissroll":
             x0 = torch.from_numpy(swiss_roll_sample_batch(batch_size)).float().to(device)
         elif dataset_name == "circles":
@@ -211,18 +215,23 @@ def train(model, optimizer, last_epoch, last_train_time_point, n_epochs, batch_s
         KL = (torch.log(sigma) - torch.log(sigma_posterior) + (sigma_posterior ** 2 + (mu_posterior - mu) ** 2) / (
                 2 * sigma ** 2) - 0.5)
         loss = KL.mean()
+        # TODO Notes
+        #   1. When setting momentum to 0.9 losses diverges to nan , try to understand why later
+        #   2.
         optimizer.zero_grad()
         loss.backward()
         training_losses.append(loss.item())
         # checkpoint
         # save checkpoint either at the very start point or later on with the counter policy
-        if epoch == 1 or epoch % checkpoint_epoch_count == 0:
-            start = max(0, epoch - window)
-            loss_avg = np.average(training_losses[start:(epoch + 1)])
-            save_checkpoint(core_model=diffusion_model.core_model, optimizer=optimizer, epoch=epoch,
+        curr_epoch = last_epoch + 1 + i
+        if curr_epoch == 1 or curr_epoch % checkpoint_epoch_count == 0:
+            start = max(0, i - window)
+            loss_avg = np.average(training_losses[start:(i + 1)])
+            save_checkpoint(core_model=diffusion_model.core_model, optimizer=optimizer, epoch=curr_epoch,
                             train_time_sec=last_train_time_point + (datetime.now() - start_time).seconds,
                             loss_window=window, loss_formula_str=loss_formula_str, loss_avg=loss_avg,
-                            checkpoint_out_path_prefix=checkpoint_out_path_prefix, device=device)
+                            checkpoint_out_path_prefix=checkpoint_out_path_prefix, device=device,
+                            dataset_name=dataset_name)
         optimizer.step()
     per_run_training_time = (datetime.now() - start_time).seconds
     # remember end-epoch is exclusive not inclusive
@@ -248,7 +257,7 @@ def get_args():
     parser.add_argument('--batch-size', type=int, required=False, default=64000)
     parser.add_argument('--loss-window', type=int, required=False, default=10000)
     parser.add_argument('--checkpoint-count', type=int, required=False, default=10000)
-    parser.add_argument('--lr', type=float, required=False, default=0.001)
+    parser.add_argument('--lr', type=float, required=False, default=1e-4)
     parser.add_argument('--momentum', type=float, required=False, default=0.9)
     parser.add_argument('--n-diffusion-steps', type=int, required=False, default=40)
     parser.add_argument('--hidden-dim', required=False, type=int, default=128)
@@ -261,18 +270,20 @@ if __name__ == "__main__":
     args = get_args()
     if args.device == "cpu":
         device = torch.device("cpu")
+    elif args.device == "gpu":
+        device = torch.device("cuda")
     else:
         raise ValueError(f"Device {args.device} is not supported")
     checkpoint_out_dir = os.path.join(args.checkpoint_out_dir, f"{args.model}_{args.dataset_name}")
     if not os.path.exists(checkpoint_out_dir):
         os.makedirs(checkpoint_out_dir)
     if args.start_checkpoint_file is None:
-        logger.info("No check point provided, training from scratch")
+        logger.info("No checkpoint provided, training from scratch")
         last_epoch = 0
         last_train_time_point = 0
         if args.model == "nn_head_tail":
             core_model = MLP(hidden_dim=args.hidden_dim).to(device)
-            optimizer = torch.optim.SGD(core_model.parameters(), lr=args.lr, momentum=args.momentum)
+            optimizer = torch.optim.SGD(core_model.parameters(), lr=args.lr)
         else:
             raise ValueError(f"Model : {args.model}")
     else:
@@ -281,7 +292,8 @@ if __name__ == "__main__":
         logger.info(f"Dump of the loaded checkpoint \n:{checkpoint_dict}")
         last_epoch = checkpoint_dict['epoch']
         last_train_time_point = checkpoint_dict['train_time_sec']
-        logger.info(f"Last epoch (loaded from checkpoint) ={last_epoch} , starting from epoch = {last_epoch + 1}")
+        logger.info(f"Last epoch (loaded from checkpoint) ={last_epoch} , "
+                    f"starting from epoch = {last_epoch + 1}")
         if args.model == "nn_head_tail":
             core_model = MLP(hidden_dim=args.hidden_dim).to(device)
             optimizer = torch.optim.SGD(core_model.parameters(), lr=args.lr, momentum=args.lr)
@@ -303,8 +315,9 @@ if __name__ == "__main__":
 
     # Test a Model
     # TODO separate testing into another script
-    plot(model=diffusion_model, dataset_name=args.dataset_name, n_epochs=args.n_epochs,
-         training_losses=training_losses, window=args.loss_window, run_timestamp=run_timestamp)
-
-    # logger.info(f'Training finished in {(end_time - start_time).seconds} seconds')
-    # save_model(model=model_arch, dataset_name=dataset_name, run_timestamp=run_timestamp, nepochs=n_epochs)
+    logger.info(f"Plotting generated and actual data")
+    plot_data(model=diffusion_model, dataset_name=args.dataset_name, epoch=last_epoch + args.n_epochs,
+              run_timestamp=run_timestamp)
+    logger.info(f"Plotting train losses")
+    plot_train_losses(training_losses=training_losses, dataset_name=args.dataset_name,
+                      epoch=last_epoch + args.n_epochs, window=args.loss_window, run_timestamp=run_timestamp)
