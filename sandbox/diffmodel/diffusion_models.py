@@ -20,11 +20,12 @@ from datetime import datetime
 
 run_timestamp = datetime.now().isoformat()  # run version
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('diff-model')
-logger.setLevel(logging.INFO)
-
+logger.info(f'Starting running with run-timestamp {run_timestamp}')
 # create file handler which logs even debug messages
 fh = logging.FileHandler(f'logs/diff_model_{run_timestamp}.log')
+fh.setLevel(logging.DEBUG)
 
 
 #
@@ -151,7 +152,9 @@ def plot(model: torch.nn.Module, dataset_name: str, n_epochs: int, training_loss
         # plt.ylim([-2, 2])
         plt.gca().set_aspect('equal')
         if t == 0: plt.ylabel(r'$p(\mathbf{x}^{(0...T)})$', fontsize=17, rotation=0, labelpad=60)
-    plt.savefig(f"Imgs/diffusion_model_{dataset_name}_nepochs_{n_epochs}_{run_timestamp}.png", bbox_inches='tight')
+    output_filepath = f"Imgs/diffusion_model_{dataset_name}_nepochs_{n_epochs}_{run_timestamp}.png"
+    logger.info(f'Writing output image {output_filepath}')
+    plt.savefig(output_filepath, bbox_inches='tight')
     plt.clf()
     plt.title('loss curve')
     plt.xlabel('iter')
@@ -165,7 +168,7 @@ def plot(model: torch.nn.Module, dataset_name: str, n_epochs: int, training_loss
     plt.close()
 
 
-def train(model, optimizer, nb_epochs, batch_size, dataset_name, window, stride):
+def train(model, optimizer, nb_epochs, batch_size, dataset_name, window, checkpoint_count):
     training_losses = []
     for i in tqdm(range(nb_epochs)):
         if dataset_name == "swissroll":
@@ -182,22 +185,20 @@ def train(model, optimizer, nb_epochs, batch_size, dataset_name, window, stride)
 
         KL = (torch.log(sigma) - torch.log(sigma_posterior) + (sigma_posterior ** 2 + (mu_posterior - mu) ** 2) / (
                 2 * sigma ** 2) - 0.5)
-        loss_formula_str = """KL = (torch.log(sigma) - torch.log(sigma_posterior) + (sigma_posterior ** 2 + (mu_posterior - mu) ** 2) / (
-                2 * sigma ** 2) - 0.5)
-        """
+        loss_type = "KL"
         loss = KL.mean()
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         training_losses.append(loss.item())
         # checkpoint
-        if i % stride == 0:
+        if i % checkpoint_count == 0:
             start = max(0, i - window)
             loss_avg = np.average(training_losses[start:(i + 1)])
-            logger.info(f"loss formula = {loss_formula_str}")
-            logger.info(f'at i = {i} ,with window  = {window} KL loss avg  = {loss_avg}')
-            for handler in logger.handlers:
-                handler.flush()
+            logger.info(f'At i = {i} ,loss_window = {window} {loss_type} loss avg  = {loss_avg}')
+            # TODO find better way to flush logs, this is slow
+            # for handler in logger.handlers:
+            #     handler.flush()
     return training_losses
 
 
@@ -212,15 +213,16 @@ logger.addHandler(fh)
 
 if __name__ == "__main__":
     dataset_name = "mvn"
-    n_epochs = int(10_000)
+    n_epochs = int(7_000)
     loss_window = 1_000
-    stride = 1_000
+    checkpoint_count = 1_000
     batch_size = 64_000
     assert dataset_name in ["swissroll", "circles", "blobs", "mvn"]
     device = torch.device('cuda')
     start_time = datetime.now()
     model_mlp = MLP(hidden_dim=128).to(device)
     model = DiffusionModel(model_mlp)
+    #
     logger.info(
         f'Starting training at {start_time} with device = {device}\n'
         f'params: dataset = {dataset_name},n_epochs= {n_epochs} batch_size = {batch_size}\n'
@@ -229,9 +231,10 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(model_mlp.parameters(), lr=1e-4)
 
     training_losses = train(model=model, optimizer=optimizer, nb_epochs=n_epochs, batch_size=64_000,
-                            dataset_name=dataset_name, window=loss_window, stride=stride)
+                            dataset_name=dataset_name, window=loss_window, checkpoint_count=checkpoint_count)
     plot(model=model, dataset_name=dataset_name, n_epochs=n_epochs, training_losses=training_losses,
          window=loss_window, run_timestamp=run_timestamp)
     end_time = datetime.now()
     logger.info(f'Training finished in {(end_time - start_time).seconds} seconds')
     save_model(model=model_mlp, dataset_name=dataset_name, run_timestamp=run_timestamp, nepochs=n_epochs)
+    print(f'Training finished successfully')
