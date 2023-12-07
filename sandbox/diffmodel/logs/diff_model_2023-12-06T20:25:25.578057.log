@@ -1,0 +1,51 @@
+2023-12-06 20:25:27,290 - diff-model - INFO - Starting training at 2023-12-06 20:25:25.578485 with device = cuda
+params: dataset = circles,n_epochs= 300000 batch_size = 64000
+Model = DiffusionModel(
+  (model): MLP(
+    (network_head): Sequential(
+      (0): Linear(in_features=2, out_features=128, bias=True)
+      (1): ReLU()
+      (2): Linear(in_features=128, out_features=128, bias=True)
+      (3): ReLU()
+    )
+    (network_tail): ModuleList(
+      (0-39): 40 x Sequential(
+        (0): Linear(in_features=128, out_features=128, bias=True)
+        (1): ReLU()
+        (2): Linear(in_features=128, out_features=4, bias=True)
+      )
+    )
+  )
+)
+2023-12-06 20:25:27,820 - diff-model - INFO - At i = 0 ,loss_window = 10000 KL loss avg  = 0.5772812366485596
+2023-12-06 20:30:04,348 - diff-model - INFO - At i = 10000 ,loss_window = 10000 KL loss avg  = 1.1842830014860468
+2023-12-06 20:34:49,099 - diff-model - INFO - At i = 20000 ,loss_window = 10000 KL loss avg  = 0.5811334287834881
+2023-12-06 20:39:34,429 - diff-model - INFO - At i = 30000 ,loss_window = 10000 KL loss avg  = 0.5676150140837427
+2023-12-06 20:44:19,908 - diff-model - INFO - At i = 40000 ,loss_window = 10000 KL loss avg  = 0.5388340436054566
+2023-12-06 20:49:05,573 - diff-model - INFO - At i = 50000 ,loss_window = 10000 KL loss avg  = 0.5405405387303964
+2023-12-06 20:53:51,232 - diff-model - INFO - At i = 60000 ,loss_window = 10000 KL loss avg  = 0.516660696449832
+2023-12-06 20:58:36,334 - diff-model - INFO - At i = 70000 ,loss_window = 10000 KL loss avg  = 0.5274059070815039
+2023-12-06 21:03:22,067 - diff-model - INFO - At i = 80000 ,loss_window = 10000 KL loss avg  = 0.5058731341234121
+2023-12-06 21:08:07,655 - diff-model - INFO - At i = 90000 ,loss_window = 10000 KL loss avg  = 0.5197940127878548
+2023-12-06 21:12:52,932 - diff-model - INFO - At i = 100000 ,loss_window = 10000 KL loss avg  = 0.5052869010227123
+2023-12-06 21:17:38,574 - diff-model - INFO - At i = 110000 ,loss_window = 10000 KL loss avg  = 0.4906388440685394
+2023-12-06 21:22:24,044 - diff-model - INFO - At i = 120000 ,loss_window = 10000 KL loss avg  = 0.48711083924928733
+2023-12-06 21:27:10,196 - diff-model - INFO - At i = 130000 ,loss_window = 10000 KL loss avg  = 0.4812166232626838
+2023-12-06 21:31:55,726 - diff-model - INFO - At i = 140000 ,loss_window = 10000 KL loss avg  = 0.48856513713289573
+2023-12-06 21:36:41,361 - diff-model - INFO - At i = 150000 ,loss_window = 10000 KL loss avg  = 0.48332158744669496
+2023-12-06 21:41:27,621 - diff-model - INFO - At i = 160000 ,loss_window = 10000 KL loss avg  = 0.498459162079228
+2023-12-06 21:46:13,021 - diff-model - INFO - At i = 170000 ,loss_window = 10000 KL loss avg  = 0.46924635101846324
+2023-12-06 21:50:58,366 - diff-model - INFO - At i = 180000 ,loss_window = 10000 KL loss avg  = 0.46178651118616043
+2023-12-06 21:55:43,399 - diff-model - INFO - At i = 190000 ,loss_window = 10000 KL loss avg  = 0.4540276213120054
+2023-12-06 22:00:28,374 - diff-model - INFO - At i = 200000 ,loss_window = 10000 KL loss avg  = 0.45007488069437485
+2023-12-06 22:05:13,697 - diff-model - INFO - At i = 210000 ,loss_window = 10000 KL loss avg  = 0.462447690584914
+2023-12-06 22:09:59,211 - diff-model - INFO - At i = 220000 ,loss_window = 10000 KL loss avg  = 0.43552322278055383
+2023-12-06 22:14:44,138 - diff-model - INFO - At i = 230000 ,loss_window = 10000 KL loss avg  = 0.4552245830530406
+2023-12-06 22:19:29,219 - diff-model - INFO - At i = 240000 ,loss_window = 10000 KL loss avg  = 0.44497220549799693
+2023-12-06 22:24:14,553 - diff-model - INFO - At i = 250000 ,loss_window = 10000 KL loss avg  = 0.43790051040417255
+2023-12-06 22:29:00,653 - diff-model - INFO - At i = 260000 ,loss_window = 10000 KL loss avg  = 0.43614333905585256
+2023-12-06 22:33:45,683 - diff-model - INFO - At i = 270000 ,loss_window = 10000 KL loss avg  = 0.4325225677319816
+2023-12-06 22:38:30,863 - diff-model - INFO - At i = 280000 ,loss_window = 10000 KL loss avg  = 0.4401632684309429
+2023-12-06 22:43:16,192 - diff-model - INFO - At i = 290000 ,loss_window = 10000 KL loss avg  = 0.4307845287764918
+2023-12-06 22:48:01,295 - diff-model - INFO - Writing output image Imgs/diffusion_model_circles_nepochs_300000_2023-12-06T20:25:25.578057.png
+2023-12-06 22:51:14,165 - diff-model - INFO - Training finished in 8748 seconds
