@@ -116,7 +116,7 @@ class DiffusionModel(nn.Module):
         return samples
 
 
-def plot(model: torch.nn.Module, dataset_name: str, n_epochs: int, training_losses: List[float], window: int,
+def plot(model: torch.nn.Module, dataset_name: str, n_epochs: int, training_losses_raw: List[float], ema_alpha: int,
          run_timestamp: str):
     plt.figure(figsize=(10, 6))
     N = 5000
@@ -156,20 +156,25 @@ def plot(model: torch.nn.Module, dataset_name: str, n_epochs: int, training_loss
     logger.info(f'Writing output image {output_filepath}')
     plt.savefig(output_filepath, bbox_inches='tight')
     plt.clf()
+
+    training_losses_ema = []
+    # https: // en.wikipedia.org / wiki / Exponential_smoothing
+    si = training_losses_raw[0]
+    training_losses_ema.append(si)
+    for i in range(1, len(training_losses_raw)):
+        xi = training_losses_raw[i]
+        si = ema_alpha * xi + (1 - ema_alpha) * si
+        training_losses_ema.append(si)
     plt.title('loss curve')
-    plt.xlabel('iter')
+    plt.xlabel('epoch')
     plt.ylabel('loss')
-    plt.plot(list(np.arange(1, len(training_losses) + 1)), training_losses)
-    for i in range(len(training_losses)):
-        start = max(i - window, 0)
-        end = i
-        training_losses[i] = np.mean(training_losses[start:end])
+    plt.plot(list(np.arange(1, len(training_losses_ema) + 1)), np.array(training_losses_ema))
 
     plt.savefig(f'loss_curve/loss_curve_{dataset_name}_nepochs_{n_epochs}_{run_timestamp}.png')
     plt.close()
 
 
-def train(model, optimizer, nb_epochs, batch_size, dataset_name, window, checkpoint_count):
+def train(model, optimizer, nb_epochs, batch_size, dataset_name, ema_alpha, checkpoint_count):
     training_losses = []
     for i in tqdm(range(nb_epochs)):
         if dataset_name == "swissroll":
@@ -193,10 +198,12 @@ def train(model, optimizer, nb_epochs, batch_size, dataset_name, window, checkpo
         optimizer.step()
         training_losses.append(loss.item())
         # checkpoint
-        if i % checkpoint_count == 0:
-            start = max(0, i - window)
-            loss_avg = np.average(training_losses[start:(i + 1)])
-            logger.info(f'At i = {i} ,loss_window = {window} {loss_type} loss avg  = {loss_avg}')
+        if i == 0:
+            loss_ema = loss.item()
+        else:
+            loss_ema = ema_alpha * loss.item() + (1 - ema_alpha) * loss_ema
+        if i == 0 or (i + 1) % checkpoint_count == 0:
+            logger.info(f'At i = {i} ,ema_alpha = {ema_alpha},{loss_type} loss ema  = {loss_ema}')
             # TODO find better way to flush logs, this is slow
             # for handler in logger.handlers:
             #     handler.flush()
@@ -215,7 +222,7 @@ logger.addHandler(fh)
 if __name__ == "__main__":
     dataset_name = "mvn"
     n_epochs = int(10_000)
-    loss_window = 1_000
+    ema_alpha = 0.9
     checkpoint_count = 1_000
     batch_size = 64_000
     assert dataset_name in ["swissroll", "circles", "blobs", "mvn"]
@@ -224,6 +231,7 @@ if __name__ == "__main__":
     model_mlp = MLP(hidden_dim=128).to(device)
     model = DiffusionModel(model_mlp)
     #
+    logger.info(f"Is Cuda Available? {torch.cuda.is_available()}")
     logger.info(
         f'Starting training at {start_time} with device = {device}\n'
         f'params: dataset = {dataset_name},n_epochs= {n_epochs} batch_size = {batch_size}\n'
@@ -232,10 +240,13 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(model_mlp.parameters(), lr=1e-4)
 
     training_losses = train(model=model, optimizer=optimizer, nb_epochs=n_epochs, batch_size=64_000,
-                            dataset_name=dataset_name, window=loss_window, checkpoint_count=checkpoint_count)
-    plot(model=model, dataset_name=dataset_name, n_epochs=n_epochs, training_losses=training_losses,
-         window=loss_window, run_timestamp=run_timestamp)
+                            dataset_name=dataset_name, ema_alpha=ema_alpha, checkpoint_count=checkpoint_count)
+    plot(model=model, dataset_name=dataset_name, n_epochs=n_epochs, training_losses_raw=training_losses,
+         ema_alpha=ema_alpha, run_timestamp=run_timestamp)
     end_time = datetime.now()
     logger.info(f'Training finished in {(end_time - start_time).seconds} seconds')
     save_model(model=model_mlp, dataset_name=dataset_name, run_timestamp=run_timestamp, nepochs=n_epochs)
+    # make sure log file handler is flushed and closed
+    fh.flush()
+    fh.close()
     print(f'Training finished successfully')

@@ -1,0 +1,33 @@
+2023-12-07 12:29:18,825 - diff-model - INFO - Is Cuda Available? True
+2023-12-07 12:29:18,826 - diff-model - INFO - Starting training at 2023-12-07 12:29:17.118304 with device = cuda
+params: dataset = mvn,n_epochs= 10000 batch_size = 64000
+Model = DiffusionModel(
+  (model): MLP(
+    (network_head): Sequential(
+      (0): Linear(in_features=2, out_features=128, bias=True)
+      (1): ReLU()
+      (2): Linear(in_features=128, out_features=128, bias=True)
+      (3): ReLU()
+    )
+    (network_tail): ModuleList(
+      (0-39): 40 x Sequential(
+        (0): Linear(in_features=128, out_features=128, bias=True)
+        (1): ReLU()
+        (2): Linear(in_features=128, out_features=4, bias=True)
+      )
+    )
+  )
+)
+2023-12-07 12:29:19,498 - diff-model - INFO - At i = 0 ,ema_alpha = 0.9,KL loss ema  = 17.735824584960938
+2023-12-07 12:29:37,886 - diff-model - INFO - At i = 999 ,ema_alpha = 0.9,KL loss ema  = 4.40027918941669
+2023-12-07 12:29:55,898 - diff-model - INFO - At i = 1999 ,ema_alpha = 0.9,KL loss ema  = 1.9994933019567656
+2023-12-07 12:30:15,552 - diff-model - INFO - At i = 2999 ,ema_alpha = 0.9,KL loss ema  = 2.3752105707091635
+2023-12-07 12:30:35,183 - diff-model - INFO - At i = 3999 ,ema_alpha = 0.9,KL loss ema  = 6.5063611741126595
+2023-12-07 12:30:54,841 - diff-model - INFO - At i = 4999 ,ema_alpha = 0.9,KL loss ema  = 1.9314923979874
+2023-12-07 12:31:14,783 - diff-model - INFO - At i = 5999 ,ema_alpha = 0.9,KL loss ema  = 0.3366967866134022
+2023-12-07 12:31:34,818 - diff-model - INFO - At i = 6999 ,ema_alpha = 0.9,KL loss ema  = 3.238362588765673
+2023-12-07 12:31:54,829 - diff-model - INFO - At i = 7999 ,ema_alpha = 0.9,KL loss ema  = 3.6021280521937653
+2023-12-07 12:32:14,901 - diff-model - INFO - At i = 8999 ,ema_alpha = 0.9,KL loss ema  = 5.187420125957651
+2023-12-07 12:32:34,917 - diff-model - INFO - At i = 9999 ,ema_alpha = 0.9,KL loss ema  = 0.11132090201268392
+2023-12-07 12:32:35,066 - diff-model - INFO - Writing output image Imgs/diffusion_model_mvn_nepochs_10000_2023-12-07T12:29:17.117876.png
+2023-12-07 12:32:36,869 - diff-model - INFO - Training finished in 199 seconds
