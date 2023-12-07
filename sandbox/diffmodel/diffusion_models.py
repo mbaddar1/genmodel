@@ -213,10 +213,10 @@ fh.setFormatter(formatter)
 logger.addHandler(fh)
 
 if __name__ == "__main__":
-    dataset_name = "circles"
-    n_epochs = int(300_000)
-    loss_window = 10_000
-    checkpoint_count = 10_000
+    dataset_name = "mvn"
+    n_epochs = int(10_000)
+    loss_window = 1_000
+    checkpoint_count = 1_000
     batch_size = 64_000
     assert dataset_name in ["swissroll", "circles", "blobs", "mvn"]
     device = torch.device('cuda')
