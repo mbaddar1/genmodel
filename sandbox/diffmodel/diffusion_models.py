@@ -116,7 +116,7 @@ class DiffusionModel(nn.Module):
         return samples
 
 
-def plot(model: torch.nn.Module, dataset_name: str, n_epochs: int, training_losses_raw: List[float], ema_alpha: int,
+def plot(model: torch.nn.Module, dataset_name: str, n_epochs: int, training_losses_raw: List[float], ema_alpha: float,
          run_timestamp: str):
     plt.figure(figsize=(10, 6))
     N = 5000
@@ -203,7 +203,7 @@ def train(model, optimizer, nb_epochs, batch_size, dataset_name, ema_alpha, chec
         else:
             loss_ema = ema_alpha * loss.item() + (1 - ema_alpha) * loss_ema
         if i == 0 or (i + 1) % checkpoint_count == 0:
-            logger.info(f'At i = {i} ,ema_alpha = {ema_alpha},{loss_type} loss ema  = {loss_ema}')
+            logger.info(f'After epoch = {i + 1} ,ema_alpha = {ema_alpha},{loss_type} loss ema  = {loss_ema}')
             # TODO find better way to flush logs, this is slow
             # for handler in logger.handlers:
             #     handler.flush()
@@ -220,24 +220,27 @@ fh.setFormatter(formatter)
 logger.addHandler(fh)
 
 if __name__ == "__main__":
-    dataset_name = "mvn"
-    n_epochs = int(10_000)
+    dataset_name = "swissroll"
+    n_epochs = int(500_000)
     ema_alpha = 0.9
-    checkpoint_count = 1_000
+    checkpoint_count = 10_000
     batch_size = 64_000
+    lr = 1e-4
     assert dataset_name in ["swissroll", "circles", "blobs", "mvn"]
     device = torch.device('cuda')
     start_time = datetime.now()
     model_mlp = MLP(hidden_dim=128).to(device)
     model = DiffusionModel(model_mlp)
+    optimizer = torch.optim.Adam(model_mlp.parameters(), lr=1e-4)
     #
     logger.info(f"Is Cuda Available? {torch.cuda.is_available()}")
     logger.info(
         f'Starting training at {start_time} with device = {device}\n'
-        f'params: dataset = {dataset_name},n_epochs= {n_epochs} batch_size = {batch_size}\n'
+        f'params: dataset = {dataset_name},n_epochs= {n_epochs} batch_size = {batch_size}'
+        f'loss-ema-alpha = {ema_alpha}\n'
+        f'Optimizer = {optimizer}\n'
         f'Model = {str(model)}')
     fh.flush()
-    optimizer = torch.optim.Adam(model_mlp.parameters(), lr=1e-4)
 
     training_losses = train(model=model, optimizer=optimizer, nb_epochs=n_epochs, batch_size=64_000,
                             dataset_name=dataset_name, ema_alpha=ema_alpha, checkpoint_count=checkpoint_count)
