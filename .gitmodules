@@ -1,3 +1,6 @@
 [submodule "score_sde"]
 	path = score_sde
 	url = git@github.com:mbaddar1/score_sde.git
+[submodule "score_sde_pytorch"]
+	path = score_sde_pytorch
+	url = git@github.com:mbaddar1/score_sde_pytorch.git
