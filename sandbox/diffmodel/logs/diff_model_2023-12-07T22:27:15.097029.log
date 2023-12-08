@@ -1,0 +1,86 @@
+2023-12-07 22:27:17,158 - diff-model - INFO - Is Cuda Available? True
+2023-12-07 22:27:17,158 - diff-model - INFO - Starting training at 2023-12-07 22:27:15.097500 with device = cuda
+params: dataset = swissroll,n_epochs= 500000 batch_size = 64000loss-ema-alpha = 0.1
+Optimizer = Adam (
+Parameter Group 0
+    amsgrad: False
+    betas: (0.9, 0.999)
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 0.0001
+    maximize: False
+    weight_decay: 0
+)
+Model = DiffusionModel(
+  (model): MLP(
+    (network_head): Sequential(
+      (0): Linear(in_features=2, out_features=128, bias=True)
+      (1): ReLU()
+      (2): Linear(in_features=128, out_features=128, bias=True)
+      (3): ReLU()
+    )
+    (network_tail): ModuleList(
+      (0-39): 40 x Sequential(
+        (0): Linear(in_features=128, out_features=128, bias=True)
+        (1): ReLU()
+        (2): Linear(in_features=128, out_features=4, bias=True)
+      )
+    )
+  )
+)
+2023-12-07 22:27:17,488 - diff-model - INFO - After epoch = 1 ,ema_alpha = 0.1,KL loss ema  = 5.59035587310791
+2023-12-07 22:32:07,847 - diff-model - INFO - After epoch = 10000 ,ema_alpha = 0.1,KL loss ema  = 0.2871063754189899
+2023-12-07 22:37:07,848 - diff-model - INFO - After epoch = 20000 ,ema_alpha = 0.1,KL loss ema  = 0.5284261418393231
+2023-12-07 22:42:09,913 - diff-model - INFO - After epoch = 30000 ,ema_alpha = 0.1,KL loss ema  = 0.5967914533229616
+2023-12-07 22:47:12,524 - diff-model - INFO - After epoch = 40000 ,ema_alpha = 0.1,KL loss ema  = 0.41895272971304187
+2023-12-07 22:52:15,549 - diff-model - INFO - After epoch = 50000 ,ema_alpha = 0.1,KL loss ema  = 2.75333110036819
+2023-12-07 22:57:18,825 - diff-model - INFO - After epoch = 60000 ,ema_alpha = 0.1,KL loss ema  = 0.393806500765003
+2023-12-07 23:02:23,184 - diff-model - INFO - After epoch = 70000 ,ema_alpha = 0.1,KL loss ema  = 0.450644636990986
+2023-12-07 23:07:27,649 - diff-model - INFO - After epoch = 80000 ,ema_alpha = 0.1,KL loss ema  = 1.1042572185957122
+2023-12-07 23:12:32,349 - diff-model - INFO - After epoch = 90000 ,ema_alpha = 0.1,KL loss ema  = 0.6357766054025793
+2023-12-07 23:17:36,907 - diff-model - INFO - After epoch = 100000 ,ema_alpha = 0.1,KL loss ema  = 0.7342800147279249
+2023-12-07 23:22:41,962 - diff-model - INFO - After epoch = 110000 ,ema_alpha = 0.1,KL loss ema  = 0.5523174696744808
+2023-12-07 23:27:46,044 - diff-model - INFO - After epoch = 120000 ,ema_alpha = 0.1,KL loss ema  = 0.6403595844839207
+2023-12-07 23:32:49,833 - diff-model - INFO - After epoch = 130000 ,ema_alpha = 0.1,KL loss ema  = 0.5030449533838459
+2023-12-07 23:37:53,481 - diff-model - INFO - After epoch = 140000 ,ema_alpha = 0.1,KL loss ema  = 0.749433494053051
+2023-12-07 23:42:56,340 - diff-model - INFO - After epoch = 150000 ,ema_alpha = 0.1,KL loss ema  = 0.6751643681338202
+2023-12-07 23:47:59,865 - diff-model - INFO - After epoch = 160000 ,ema_alpha = 0.1,KL loss ema  = 0.689738594397831
+2023-12-07 23:53:02,777 - diff-model - INFO - After epoch = 170000 ,ema_alpha = 0.1,KL loss ema  = 0.6838456556116431
+2023-12-07 23:58:05,749 - diff-model - INFO - After epoch = 180000 ,ema_alpha = 0.1,KL loss ema  = 0.27829397531435096
+2023-12-08 00:03:09,226 - diff-model - INFO - After epoch = 190000 ,ema_alpha = 0.1,KL loss ema  = 0.7425001854062118
+2023-12-08 00:08:12,420 - diff-model - INFO - After epoch = 200000 ,ema_alpha = 0.1,KL loss ema  = 0.2815252577668185
+2023-12-08 00:13:15,984 - diff-model - INFO - After epoch = 210000 ,ema_alpha = 0.1,KL loss ema  = 0.36240833010274426
+2023-12-08 00:18:19,618 - diff-model - INFO - After epoch = 220000 ,ema_alpha = 0.1,KL loss ema  = 0.31758079934395095
+2023-12-08 00:23:22,083 - diff-model - INFO - After epoch = 230000 ,ema_alpha = 0.1,KL loss ema  = 0.592189238727231
+2023-12-08 00:28:24,521 - diff-model - INFO - After epoch = 240000 ,ema_alpha = 0.1,KL loss ema  = 0.47870802839971727
+2023-12-08 00:33:27,090 - diff-model - INFO - After epoch = 250000 ,ema_alpha = 0.1,KL loss ema  = 0.7701003268557675
+2023-12-08 00:38:29,468 - diff-model - INFO - After epoch = 260000 ,ema_alpha = 0.1,KL loss ema  = 0.34558599168929816
+2023-12-08 00:43:31,706 - diff-model - INFO - After epoch = 270000 ,ema_alpha = 0.1,KL loss ema  = 0.5158579989312368
+2023-12-08 00:48:33,787 - diff-model - INFO - After epoch = 280000 ,ema_alpha = 0.1,KL loss ema  = 0.8935547020414518
+2023-12-08 00:53:36,365 - diff-model - INFO - After epoch = 290000 ,ema_alpha = 0.1,KL loss ema  = 0.7707535537890812
+2023-12-08 00:58:38,513 - diff-model - INFO - After epoch = 300000 ,ema_alpha = 0.1,KL loss ema  = 0.4156987652753323
+2023-12-08 01:03:40,825 - diff-model - INFO - After epoch = 310000 ,ema_alpha = 0.1,KL loss ema  = 0.4619647541116497
+2023-12-08 01:08:43,513 - diff-model - INFO - After epoch = 320000 ,ema_alpha = 0.1,KL loss ema  = 0.47476161363265534
+2023-12-08 01:13:45,153 - diff-model - INFO - After epoch = 330000 ,ema_alpha = 0.1,KL loss ema  = 0.2983875212361293
+2023-12-08 01:18:46,375 - diff-model - INFO - After epoch = 340000 ,ema_alpha = 0.1,KL loss ema  = 0.3065194414466172
+2023-12-08 01:23:48,152 - diff-model - INFO - After epoch = 350000 ,ema_alpha = 0.1,KL loss ema  = 0.30333418711540494
+2023-12-08 01:28:50,555 - diff-model - INFO - After epoch = 360000 ,ema_alpha = 0.1,KL loss ema  = 0.323063677925035
+2023-12-08 01:33:52,021 - diff-model - INFO - After epoch = 370000 ,ema_alpha = 0.1,KL loss ema  = 0.2875090155582337
+2023-12-08 01:38:53,937 - diff-model - INFO - After epoch = 380000 ,ema_alpha = 0.1,KL loss ema  = 0.3032035358663943
+2023-12-08 01:43:55,883 - diff-model - INFO - After epoch = 390000 ,ema_alpha = 0.1,KL loss ema  = 1.1268329911229535
+2023-12-08 01:48:57,312 - diff-model - INFO - After epoch = 400000 ,ema_alpha = 0.1,KL loss ema  = 0.3570903414480259
+2023-12-08 01:53:58,762 - diff-model - INFO - After epoch = 410000 ,ema_alpha = 0.1,KL loss ema  = 0.33331921378288204
+2023-12-08 01:59:00,429 - diff-model - INFO - After epoch = 420000 ,ema_alpha = 0.1,KL loss ema  = 0.3808433159470881
+2023-12-08 02:04:01,788 - diff-model - INFO - After epoch = 430000 ,ema_alpha = 0.1,KL loss ema  = 0.3962721874867263
+2023-12-08 02:09:02,428 - diff-model - INFO - After epoch = 440000 ,ema_alpha = 0.1,KL loss ema  = 0.3958664990189556
+2023-12-08 02:14:03,677 - diff-model - INFO - After epoch = 450000 ,ema_alpha = 0.1,KL loss ema  = 0.3436311680170851
+2023-12-08 02:19:04,590 - diff-model - INFO - After epoch = 460000 ,ema_alpha = 0.1,KL loss ema  = 0.44264216260827266
+2023-12-08 02:24:06,068 - diff-model - INFO - After epoch = 470000 ,ema_alpha = 0.1,KL loss ema  = 0.2661733478323409
+2023-12-08 02:29:07,101 - diff-model - INFO - After epoch = 480000 ,ema_alpha = 0.1,KL loss ema  = 0.38524924577543174
+2023-12-08 02:34:08,334 - diff-model - INFO - After epoch = 490000 ,ema_alpha = 0.1,KL loss ema  = 0.26704908979068526
+2023-12-08 02:39:09,885 - diff-model - INFO - After epoch = 500000 ,ema_alpha = 0.1,KL loss ema  = 0.7377238310621594
+2023-12-08 02:39:10,026 - diff-model - INFO - Writing output image Imgs/diffusion_model_swissroll_nepochs_500000_2023-12-07T22:27:15.097029.png
+2023-12-08 02:39:12,151 - diff-model - INFO - Training finished in 15117 seconds

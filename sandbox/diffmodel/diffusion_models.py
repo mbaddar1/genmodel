@@ -220,8 +220,8 @@ fh.setFormatter(formatter)
 logger.addHandler(fh)
 
 if __name__ == "__main__":
-    dataset_name = "mvn"
-    n_epochs = int(10_000)
+    dataset_name = "circles"
+    n_epochs = int(500_000)
     ema_alpha = 0.1
     checkpoint_count = 10_000
     batch_size = 64_000
