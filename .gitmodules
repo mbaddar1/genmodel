@@ -1,0 +1,3 @@
+[submodule "score_sde"]
+	path = score_sde
+	url = git@github.com:mbaddar1/score_sde.git
