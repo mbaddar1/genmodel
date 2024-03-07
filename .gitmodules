@@ -4,6 +4,9 @@
 [submodule "score_sde_pytorch"]
 	path = score_sde_pytorch
 	url = git@github.com:mbaddar1/score_sde_pytorch.git
+[submodule "Diffusion"]
+	path = Diffusion
+	url = git@github.com:mbaddar1/Diffusion.git
 [submodule "denoising-diffusion-pytorch"]
 	path = denoising-diffusion-pytorch
 	url = git@github.com:mbaddar1/denoising-diffusion-pytorch.git
