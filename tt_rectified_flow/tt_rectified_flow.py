@@ -75,7 +75,8 @@ def draw_plot(model, z0, z1, N, tt_rank):
     plt.legend()
     plt.title("Distribution")
     plt.tight_layout()
-    plt.savefig(f"generated_vs_actual_rank_{tt_rank}.png")
+    print(f"Saving gen vs actual samples")
+    plt.savefig(f"generated_vs_actual_samples_{tt_rank}.png")
     # traj_particles = torch.stack(traj)
     plt.figure(figsize=(4, 4))
     plt.axis("equal")
@@ -83,8 +84,8 @@ def draw_plot(model, z0, z1, N, tt_rank):
         plt.plot(traj[:, i, 0], traj[:, i, 1])
     plt.title("Transport Trajectory")
     plt.tight_layout()
-
-    plt.savefig("traj.png")
+    print("Saving trajectory figure")
+    plt.savefig("trajectory.png")
 
 
 ################  Preliminaries  ##############################
@@ -178,7 +179,7 @@ if __name__ == '__main__':
 
     print(f"Starting tt fitting")
     ## TT parameters
-    tt_rank = 20
+    tt_rank = 5
     degrees = [tt_rank] * (d + 1)  # hotfix by charles that made the GMM work
     ranks = [1] + [4] * d + [1]
 
