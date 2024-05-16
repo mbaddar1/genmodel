@@ -14,6 +14,10 @@ Sources:
 - Denoising diffusion model:
   - https://arxiv.org/abs/2006.11239
   - https://github.com/dataflowr/notebooks/blob/master/Module18/ddpm_micro_sol.ipynb
+
+More :
+    https://huggingface.co/blog/Isamu136/insta-rectified-flow
+
 """
 
 import torch

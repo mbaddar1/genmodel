@@ -45,7 +45,7 @@ def sample_ode(z0: torch.Tensor, N: int = None) -> torch.Tensor:
 ########################## Plot results #########################
 
 
-def draw_plot(model, z0, z1, N):
+def draw_plot(model, z0, z1, N, tt_rank):
     from scipy.integrate import odeint
     traj = sample_ode(z0, N)
     # traj = torch.cat([torch.from_numpy(odeint(v, z0[i], torch.linspace(0., 1., steps=N), tfirst=False)) for i in range(z0.shape[0])], axis=0)
@@ -75,7 +75,7 @@ def draw_plot(model, z0, z1, N):
     plt.legend()
     plt.title("Distribution")
     plt.tight_layout()
-
+    plt.savefig(f"generated_vs_actual_rank_{tt_rank}.png")
     # traj_particles = torch.stack(traj)
     plt.figure(figsize=(4, 4))
     plt.axis("equal")
@@ -84,7 +84,7 @@ def draw_plot(model, z0, z1, N):
     plt.title("Transport Trajectory")
     plt.tight_layout()
 
-    plt.savefig("result.png")
+    plt.savefig("traj.png")
 
 
 ################  Preliminaries  ##############################
@@ -105,14 +105,14 @@ if __name__ == '__main__':
     # the target distribution is a Gaussian mixture
     target_mix = Categorical(torch.ones(n_comp))
     t = 2 * torch.pi * torch.arange(n_comp) / n_comp
-    mu_target = D * torch.stack([-torch.sin(t), torch.cos(t)], axis=1)
+    mu_target = D * torch.stack([-torch.sin(t), torch.cos(t)],axis=1) # FIXME, stack doesn't get axis param
     cov_target = var * torch.stack([torch.eye(2) for i in range(n_comp)])
     target_comp = MultivariateNormal(mu_target, cov_target)
     target_model = MixtureSameFamily(target_mix, target_comp)
     # target_model = MultivariateNormal(D * torch.tensor([1.0, -1.0]), torch.eye(d))
 
-    samples_0 = initial_model.sample((n_samples,))
-    samples_1 = target_model.sample((n_samples,))
+    samples_0 = initial_model.sample(torch.Size((n_samples,)))
+    samples_1 = target_model.sample(torch.Size((n_samples,)))
 
     # plot the samples
     plt.figure(figsize=(4, 4))
@@ -141,7 +141,7 @@ if __name__ == '__main__':
     plt.ylim(*limits)
 
     plt.tight_layout()
-    plt.show()
+    plt.savefig("init_targe_dist.png")
 
     ################### Samples and targets  #############################################
 
@@ -176,10 +176,11 @@ if __name__ == '__main__':
 
     ##############  TT fitting #################################
 
-    # exit()
+    print(f"Starting tt fitting")
     ## TT parameters
-    degrees = [5] * (d + 1)  # hotfix by charles that made the GMM work
-    ranks = [1] + [4] * (d) + [1]
+    tt_rank = 20
+    degrees = [tt_rank] * (d + 1)  # hotfix by charles that made the GMM work
+    ranks = [1] + [4] * d + [1]
 
     domain = [list(limits) for _ in range(d)] + [[0, 1]]
 
@@ -216,5 +217,5 @@ if __name__ == '__main__':
             reg_param=reg_coeff,
         )
         ETT.tt.set_core(d)
-    draw_plot(ETTs, initial_model.sample((n_samples,)), samples_1, 1000)
-    # plt.show()
+    draw_plot(ETTs, initial_model.sample(torch.Size((n_samples, ))), samples_1, 1000, tt_rank=tt_rank)
+    #
