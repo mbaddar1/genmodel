@@ -1,11 +1,23 @@
+"""TODO
+    1. Make dist figure 3 cols : pi0 pi1 and pi1_gen
+    2. Use GeomLoss Sinkhorn
+"""
+import random
+
 import torch
+import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.datasets import make_swiss_roll
 from torch.distributions import Categorical
 from torch.distributions.multivariate_normal import MultivariateNormal
 from torch.distributions.mixture_same_family import MixtureSameFamily
 
 from functional_tt_fabrique import Extended_TensorTrain, orthpoly
 
+SEED = 42
+torch.manual_seed(SEED)
+random.seed(SEED)
+np.random.seed(SEED)
 
 ######################## Sample ODE #########################
 
@@ -50,33 +62,81 @@ def draw_plot(model, z0, z1, N, tt_rank):
     traj = sample_ode(z0, N)
     # traj = torch.cat([torch.from_numpy(odeint(v, z0[i], torch.linspace(0., 1., steps=N), tfirst=False)) for i in range(z0.shape[0])], axis=0)
 
-    plt.figure(figsize=(4, 4))
-    plt.xlim(*limits)
-    plt.ylim(*limits)
+    fig = plt.figure()
 
-    plt.scatter(
+    # need to set limits as some times we have very large values that shrinks the plot
+    # plt.xlim(*limits)
+    # plt.ylim(*limits)
+
+    ax1 = fig.add_subplot(131)
+    ax2 = fig.add_subplot(132)
+    ax3 = fig.add_subplot(133)
+
+    ax1.set_xlim(*limits)
+    ax1.set_ylim(*limits)
+    ax1.set_title("Init")
+
+    ax2.set_xlim(*limits)
+    ax2.set_ylim(*limits)
+    ax2.set_title("Target")
+
+    ax3.set_xlim(*limits)
+    ax3.set_ylim(*limits)
+    ax3.set_title("Generated")
+
+    fig.suptitle('Distribution Samples')
+
+    ax2.scatter(
         z1[:, 0].cpu().numpy(),
         z1[:, 1].cpu().numpy(),
         label="pi_1",  # r"$\pi_1$",
         alpha=0.15,
+        color="red"
     )
-    plt.scatter(
+
+    ax1.scatter(
         traj[0][:, 0].cpu().numpy(),
         traj[0][:, 1].cpu().numpy(),
         label="pi_0",  # r"$\pi_0$",
         alpha=0.15,
+        color="green"
     )
-    plt.scatter(
+
+    ax3.scatter(
         traj[-1][:, 0].cpu().numpy(),
         traj[-1][:, 1].cpu().numpy(),
         label="Generated",
         alpha=0.15,
+        color="blue"
     )
-    plt.legend()
-    plt.title("Distribution")
-    plt.tight_layout()
-    print(f"Saving gen vs actual samples")
+
+    # plt.figure(figsize=(4, 4))
+
+    # # plot init, target and generated
+    # plt.scatter(
+    #     z1[:, 0].cpu().numpy(),
+    #     z1[:, 1].cpu().numpy(),
+    #     label="pi_1",  # r"$\pi_1$",
+    #     alpha=0.15,
+    # )
+    # plt.scatter(
+    #     traj[0][:, 0].cpu().numpy(),
+    #     traj[0][:, 1].cpu().numpy(),
+    #     label="pi_0",  # r"$\pi_0$",
+    #     alpha=0.15,
+    # )
+    # plt.scatter(
+    #     traj[-1][:, 0].cpu().numpy(),
+    #     traj[-1][:, 1].cpu().numpy(),
+    #     label="Generated",
+    #     alpha=0.15,
+    # )
+    # plt.legend()
+    # plt.title("Distribution")
+    # plt.tight_layout()
+    # print(f"Saving gen vs actual samples")
     plt.savefig(f"generated_vs_actual_samples_{tt_rank}.png")
+
     # traj_particles = torch.stack(traj)
     plt.figure(figsize=(4, 4))
     plt.axis("equal")
@@ -92,7 +152,7 @@ def draw_plot(model, z0, z1, N, tt_rank):
 if __name__ == '__main__':
 
     D = 10.0  # 10.0
-    limits = (-D - 5, D + 5)
+    limits = (-D, D )
     var: float = 0.3
     n_comp: int = 2
     n_samples: int = 10_000
@@ -106,15 +166,21 @@ if __name__ == '__main__':
     # the target distribution is a Gaussian mixture
     target_mix = Categorical(torch.ones(n_comp))
     t = 2 * torch.pi * torch.arange(n_comp) / n_comp
-    mu_target = D * torch.stack([-torch.sin(t), torch.cos(t)],axis=1) # FIXME, stack doesn't get axis param
+    mu_target = D * torch.stack([-torch.sin(t), torch.cos(t)], axis=1)  # FIXME, stack doesn't get axis param
     cov_target = var * torch.stack([torch.eye(2) for i in range(n_comp)])
     target_comp = MultivariateNormal(mu_target, cov_target)
     target_model = MixtureSameFamily(target_mix, target_comp)
     # target_model = MultivariateNormal(D * torch.tensor([1.0, -1.0]), torch.eye(d))
 
     samples_0 = initial_model.sample(torch.Size((n_samples,)))
-    samples_1 = target_model.sample(torch.Size((n_samples,)))
-
+    # samples from Gaussian Mixture
+    # samples_1 = target_model.sample(torch.Size((n_samples,)))
+    # samples from 2D swissroll
+    # Same code from
+    # 1 ) https://github.com/Jmkernes/Diffusion/blob/main/diffusion/ddpm/main.py#L44
+    # 2 ) https://github.com/MaximeVandegar/Papers-in-100-Lines-of-Code/blob/main/Deep_Unsupervised_Learning_using_Nonequilibrium_Thermodynamics/diffusion_models.py#L12
+    # 3 ) https://github.com/mbaddar1/Diffusion/blob/281e453d66d413976bc069c75d736c6df3c4a9de/diffusion/ddpm/main.py#L50
+    samples_1 = torch.tensor(make_swiss_roll(n_samples=n_samples, noise=1e-1)[0][:, [0, 2]] / 2.0)
     # plot the samples
     plt.figure(figsize=(4, 4))
     plt.title(r"Samples from $\pi_0$ and $\pi_1$")
@@ -130,6 +196,7 @@ if __name__ == '__main__':
         alpha=0.1,
         label=r"$\pi_1$",
     )
+
     # plt.scatter(
     #     mu_target[:, 0].cpu(),
     #     mu_target[:, 1].cpu(),
@@ -143,7 +210,8 @@ if __name__ == '__main__':
 
     plt.tight_layout()
     plt.savefig("init_targe_dist.png")
-
+    plt.clf()
+    # sys.exit(-1)
     ################### Samples and targets  #############################################
 
     # M: int = 10  # number of $X_t$ for each tuple (X_0^i, X_1^i)
@@ -179,7 +247,7 @@ if __name__ == '__main__':
 
     print(f"Starting tt fitting")
     ## TT parameters
-    tt_rank = 5
+    tt_rank = 40
     degrees = [tt_rank] * (d + 1)  # hotfix by charles that made the GMM work
     ranks = [1] + [4] * d + [1]
 
@@ -218,5 +286,5 @@ if __name__ == '__main__':
             reg_param=reg_coeff,
         )
         ETT.tt.set_core(d)
-    draw_plot(ETTs, initial_model.sample(torch.Size((n_samples, ))), samples_1, 1000, tt_rank=tt_rank)
+    draw_plot(ETTs, initial_model.sample(torch.Size((n_samples,))), samples_1, 1000, tt_rank=tt_rank)
     #
