@@ -152,7 +152,7 @@ def draw_plot(model, z0, z1, N, tt_rank):
 if __name__ == '__main__':
 
     D = 10.0  # 10.0
-    limits = (-D, D )
+    limits = (-15, 15)
     var: float = 0.3
     n_comp: int = 2
     n_samples: int = 10_000
@@ -174,13 +174,13 @@ if __name__ == '__main__':
 
     samples_0 = initial_model.sample(torch.Size((n_samples,)))
     # samples from Gaussian Mixture
-    # samples_1 = target_model.sample(torch.Size((n_samples,)))
+    samples_1 = target_model.sample(torch.Size((n_samples,)))
     # samples from 2D swissroll
     # Same code from
     # 1 ) https://github.com/Jmkernes/Diffusion/blob/main/diffusion/ddpm/main.py#L44
     # 2 ) https://github.com/MaximeVandegar/Papers-in-100-Lines-of-Code/blob/main/Deep_Unsupervised_Learning_using_Nonequilibrium_Thermodynamics/diffusion_models.py#L12
     # 3 ) https://github.com/mbaddar1/Diffusion/blob/281e453d66d413976bc069c75d736c6df3c4a9de/diffusion/ddpm/main.py#L50
-    samples_1 = torch.tensor(make_swiss_roll(n_samples=n_samples, noise=1e-1)[0][:, [0, 2]] / 2.0)
+    # samples_1 = torch.tensor(make_swiss_roll(n_samples=n_samples, noise=1e-1)[0][:, [0, 2]] / 2.0)
     # plot the samples
     plt.figure(figsize=(4, 4))
     plt.title(r"Samples from $\pi_0$ and $\pi_1$")
