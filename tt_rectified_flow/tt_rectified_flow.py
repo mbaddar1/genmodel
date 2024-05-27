@@ -7,17 +7,17 @@ import random
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.datasets import make_swiss_roll
 from torch.distributions import Categorical
 from torch.distributions.multivariate_normal import MultivariateNormal
 from torch.distributions.mixture_same_family import MixtureSameFamily
-
+from geomloss import SamplesLoss
 from functional_tt_fabrique import Extended_TensorTrain, orthpoly
 
 SEED = 42
 torch.manual_seed(SEED)
 random.seed(SEED)
 np.random.seed(SEED)
+
 
 ######################## Sample ODE #########################
 
@@ -35,6 +35,39 @@ def v(z, t):
     for i in range(d):
         result[:, i] = ETTs[i](zt).ravel()
     return result
+
+
+def mask_nan(x: torch.Tensor):
+    B, D = x.shape[0], x.shape[1]
+    mask = torch.tensor([True] * B)
+    for d in range(D):
+        mask_d = torch.bitwise_not(torch.isnan(x[:, d]))
+        mask = torch.bitwise_and(mask_d, mask)
+    res = x[mask, :]
+    return res
+
+
+def remove_outliers(x: torch.Tensor):
+    alpha = 0.01
+    B, D = x.shape[0], x.shape[1]
+    mask = torch.tensor([True] * B)
+
+    q = torch.quantile(input=x, q=torch.tensor([alpha, 1 - alpha]), dim=0)
+    for d in range(D):
+        min_ = q[0, d].item()
+        max_ = q[1, d].item()
+        cond1 = torch.ge(x[:, d], min_)
+        cond2 = torch.le(x[:, d], max_)
+        mask_d = torch.bitwise_and(cond1, cond2)
+        mask = torch.bitwise_and(mask, mask_d)
+    x_clean = x[mask, :]
+    return x_clean
+
+
+def filter_tensor(x: torch.Tensor):
+    x1 = mask_nan(x)
+    x1 = remove_outliers(x1)
+    return x1
 
 
 def sample_ode(z0: torch.Tensor, N: int = None) -> torch.Tensor:
@@ -101,10 +134,10 @@ def draw_plot(model, z0, z1, N, tt_rank):
         alpha=0.15,
         color="green"
     )
-
+    z1_ = filter_tensor(traj[-1])  # filtered version of traj
     ax3.scatter(
-        traj[-1][:, 0].cpu().numpy(),
-        traj[-1][:, 1].cpu().numpy(),
+        z1_[:, 0].cpu().numpy(),
+        z1_[:, 1].cpu().numpy(),
         label="Generated",
         alpha=0.15,
         color="blue"
@@ -158,6 +191,8 @@ if __name__ == '__main__':
     n_samples: int = 10_000
     d: int = 2
 
+    # check if cuda is available
+    print(f"Is cuda available => {torch.cuda.is_available()}")
     # we use a standard Gaussian as prior
     mu_prior = torch.zeros(d)
     cov_prior = torch.eye(d)
@@ -182,6 +217,7 @@ if __name__ == '__main__':
     # 3 ) https://github.com/mbaddar1/Diffusion/blob/281e453d66d413976bc069c75d736c6df3c4a9de/diffusion/ddpm/main.py#L50
     # samples_1 = torch.tensor(make_swiss_roll(n_samples=n_samples, noise=1e-1)[0][:, [0, 2]] / 2.0)
     # plot the samples
+
     plt.figure(figsize=(4, 4))
     plt.title(r"Samples from $\pi_0$ and $\pi_1$")
     plt.scatter(
@@ -247,7 +283,7 @@ if __name__ == '__main__':
 
     print(f"Starting tt fitting")
     ## TT parameters
-    tt_rank = 40
+    tt_rank = 50
     degrees = [tt_rank] * (d + 1)  # hotfix by charles that made the GMM work
     ranks = [1] + [4] * d + [1]
 
@@ -286,5 +322,53 @@ if __name__ == '__main__':
             reg_param=reg_coeff,
         )
         ETT.tt.set_core(d)
-    draw_plot(ETTs, initial_model.sample(torch.Size((n_samples,))), samples_1, 1000, tt_rank=tt_rank)
-    #
+    N = 1000
+    draw_plot(ETTs, initial_model.sample(torch.Size((n_samples,))), samples_1, N, tt_rank=tt_rank)
+
+    # Calculate Sinkhorn losses
+
+    sample_ref_1 = target_model.sample(torch.Size((n_samples,)))  # .cuda()
+    sample_ref_2 = target_model.sample(torch.Size((n_samples,)))  # .cuda()
+
+    # check statistics for close samples
+    mean_0 = torch.mean(samples_1, dim=0)
+    mean_1 = torch.mean(sample_ref_1, dim=0)
+    mean_2 = torch.mean(sample_ref_2, dim=0)
+
+    loss = SamplesLoss(loss="sinkhorn")
+    L_ref = loss(sample_ref_1, sample_ref_2)
+
+    z0 = initial_model.sample(torch.Size((n_samples,)))
+    traj = sample_ode(z0, N)
+
+    # tmp = traj[-1]
+    # nan_count = torch.sum(torch.isnan(tmp))
+    # min_ = tmp.min(dim=0)[0]
+    # max_ = tmp.max(dim=0)[0]
+    # k_min = torch.kthvalue(input=tmp, k=1, dim=0)
+    z1_ = filter_tensor(traj[-1])  # filtered endpoint in traj
+    L_gen_1 = loss(z1_, sample_ref_1)
+    L_gen_2 = loss(z1_, sample_ref_2)
+
+    print(f"tt-rank = {tt_rank}")
+    print(f"Gen sinkhorn loss = {(L_gen_1+L_gen_2)/2.0}")
+
+
+"""
+Quick Experiments results
+
+For Gaussian Mixtures with k = 2
+Data sampling line of code tt_rectified_flow/tt_rectified_flow.py:212
+tt_rank         sinkhorn divergence
+0               42               
+1               8.8
+5               1.2
+10              0.7
+20              0.885              
+30              0.398
+32              0.30
+35              0.32
+36              0.38
+40              0.499
+50              10.079
+"""
