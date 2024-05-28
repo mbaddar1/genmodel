@@ -1,13 +1,16 @@
 """TODO
-    1. Make dist figure 3 cols : pi0 pi1 and pi1_gen
-    2. Use GeomLoss Sinkhorn
+    1. Make dist figure 3 cols :
+        pi0 pi1 and pi1_gen             DONE
+    2. Use GeomLoss Sinkhorn            DONE
+    3. Use Swissroll 2D data            DONE
+    4. Use Circles Data                 In-Progress
 """
 import random
 
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.datasets import make_swiss_roll
+from sklearn.datasets import make_swiss_roll, make_circles
 from torch.distributions import Categorical
 from torch.distributions.multivariate_normal import MultivariateNormal
 from torch.distributions.mixture_same_family import MixtureSameFamily
@@ -49,7 +52,7 @@ def mask_nan(x: torch.Tensor):
 
 
 def remove_outliers(x: torch.Tensor):
-    alpha = 0.01
+    alpha = 0.05
     B, D = x.shape[0], x.shape[1]
     mask = torch.tensor([True] * B)
 
@@ -216,7 +219,8 @@ if __name__ == '__main__':
     # 1 ) https://github.com/Jmkernes/Diffusion/blob/main/diffusion/ddpm/main.py#L44
     # 2 ) https://github.com/MaximeVandegar/Papers-in-100-Lines-of-Code/blob/main/Deep_Unsupervised_Learning_using_Nonequilibrium_Thermodynamics/diffusion_models.py#L12
     # 3 ) https://github.com/mbaddar1/Diffusion/blob/281e453d66d413976bc069c75d736c6df3c4a9de/diffusion/ddpm/main.py#L50
-    samples_1 = torch.tensor(make_swiss_roll(n_samples=n_samples, noise=1e-1)[0][:, [0, 2]] / 2.0)
+    # samples_1 = torch.tensor(make_swiss_roll(n_samples=n_samples, noise=1e-1)[0][:, [0, 2]] / 2.0)
+    samples_1 = torch.tensor(make_circles(n_samples=n_samples, shuffle=True, factor=0.9,noise=0.05)[0]*5.0)
     # plot the samples
 
     plt.figure(figsize=(4, 4))
@@ -284,8 +288,8 @@ if __name__ == '__main__':
 
     print(f"Starting tt fitting")
     # TT parameters
-    tt_rank = 6
-    degree = 16
+    tt_rank = 7
+    degree = 10
     degrees = [degree] * (d + 1)  # hotfix by charles that made the GMM work
     ranks = [1] + [tt_rank] * d + [1]
 
@@ -374,4 +378,18 @@ Rank        Deg         Sinkhorn
 6           14          0.08
 6           15          0.09
 6           16          0.06 *
+------------------------------------------
+ii)
+Model : TT-Recflow with legendre poly 
+Dataset : Circles
+Opt : Fixed Rank TT-ALS
+Numerically
+Ref sinkhorn divergence = 0.01
+Rank        Deg         Sinkhorn
+6           10          0.76
+6           15          0.63
+7           10          0.74 *
+-----------------------------------------
+iii)
+
 """
