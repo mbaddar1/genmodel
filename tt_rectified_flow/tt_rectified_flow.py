@@ -7,6 +7,7 @@ import random
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.datasets import make_swiss_roll
 from torch.distributions import Categorical
 from torch.distributions.multivariate_normal import MultivariateNormal
 from torch.distributions.mixture_same_family import MixtureSameFamily
@@ -168,7 +169,7 @@ def draw_plot(model, z0, z1, N, tt_rank):
     # plt.title("Distribution")
     # plt.tight_layout()
     # print(f"Saving gen vs actual samples")
-    plt.savefig(f"generated_vs_actual_samples_{tt_rank}.png")
+    plt.savefig(f"generated_vs_actual_samples_rank_{tt_rank}_deg_{degree}.png")
 
     # traj_particles = torch.stack(traj)
     plt.figure(figsize=(4, 4))
@@ -209,13 +210,13 @@ if __name__ == '__main__':
 
     samples_0 = initial_model.sample(torch.Size((n_samples,)))
     # samples from Gaussian Mixture
-    samples_1 = target_model.sample(torch.Size((n_samples,)))
+    # samples_1 = target_model.sample(torch.Size((n_samples,)))
     # samples from 2D swissroll
     # Same code from
     # 1 ) https://github.com/Jmkernes/Diffusion/blob/main/diffusion/ddpm/main.py#L44
     # 2 ) https://github.com/MaximeVandegar/Papers-in-100-Lines-of-Code/blob/main/Deep_Unsupervised_Learning_using_Nonequilibrium_Thermodynamics/diffusion_models.py#L12
     # 3 ) https://github.com/mbaddar1/Diffusion/blob/281e453d66d413976bc069c75d736c6df3c4a9de/diffusion/ddpm/main.py#L50
-    # samples_1 = torch.tensor(make_swiss_roll(n_samples=n_samples, noise=1e-1)[0][:, [0, 2]] / 2.0)
+    samples_1 = torch.tensor(make_swiss_roll(n_samples=n_samples, noise=1e-1)[0][:, [0, 2]] / 2.0)
     # plot the samples
 
     plt.figure(figsize=(4, 4))
@@ -282,10 +283,11 @@ if __name__ == '__main__':
     ##############  TT fitting #################################
 
     print(f"Starting tt fitting")
-    ## TT parameters
-    tt_rank = 50
-    degrees = [tt_rank] * (d + 1)  # hotfix by charles that made the GMM work
-    ranks = [1] + [4] * d + [1]
+    # TT parameters
+    tt_rank = 6
+    degree = 16
+    degrees = [degree] * (d + 1)  # hotfix by charles that made the GMM work
+    ranks = [1] + [tt_rank] * d + [1]
 
     domain = [list(limits) for _ in range(d)] + [[0, 1]]
 
@@ -327,8 +329,10 @@ if __name__ == '__main__':
 
     # Calculate Sinkhorn losses
 
-    sample_ref_1 = target_model.sample(torch.Size((n_samples,)))  # .cuda()
-    sample_ref_2 = target_model.sample(torch.Size((n_samples,)))  # .cuda()
+    # sample_ref_1 = target_model.sample(torch.Size((n_samples,)))  # .cuda()
+    # sample_ref_2 = target_model.sample(torch.Size((n_samples,)))  # .cuda()
+    sample_ref_1 = torch.tensor(make_swiss_roll(n_samples=n_samples, noise=1e-1)[0][:, [0, 2]] / 2.0)
+    sample_ref_2 = torch.tensor(make_swiss_roll(n_samples=n_samples, noise=1e-1)[0][:, [0, 2]] / 2.0)
 
     # check statistics for close samples
     mean_0 = torch.mean(samples_1, dim=0)
@@ -350,25 +354,24 @@ if __name__ == '__main__':
     L_gen_1 = loss(z1_, sample_ref_1)
     L_gen_2 = loss(z1_, sample_ref_2)
 
-    print(f"tt-rank = {tt_rank}")
-    print(f"Gen sinkhorn loss = {(L_gen_1+L_gen_2)/2.0}")
-
+    print(f"rank = {tt_rank}")
+    print(f"deg = {degree}")
+    print(f"Ref sinkhorn = {L_ref}")
+    print(f"Gen sinkhorn loss = {(L_gen_1 + L_gen_2) / 2.0}")
 
 """
 Quick Experiments results
-
-For Gaussian Mixtures with k = 2
-Data sampling line of code tt_rectified_flow/tt_rectified_flow.py:212
-tt_rank         sinkhorn divergence
-0               42               
-1               8.8
-5               1.2
-10              0.7
-20              0.885              
-30              0.398
-32              0.30
-35              0.32
-36              0.38
-40              0.499
-50              10.079
+---
+i) 
+Model : TT-Recflow with legendre poly 
+Dataset : Swissroll 2D 
+Opt : Fixed Rank TT-ALS
+Results: 
+Numerically
+Ref sinkhorn divergence = 0.003
+Best results so far
+Rank        Deg         Sinkhorn
+6           14          0.08
+6           15          0.09
+6           16          0.06 *
 """
