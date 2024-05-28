@@ -1,16 +1,19 @@
-"""TODO
+"""
+TODO
     1. Make dist figure 3 cols :
         pi0 pi1 and pi1_gen             DONE
     2. Use GeomLoss Sinkhorn            DONE
     3. Use Swissroll 2D data            DONE
-    4. Use Circles Data                 In-Progress
+    4. Use Circles Data                 DONE
+    5. Use Blob Data                    DONE
+    6. Use Half Moon Data               In-Progress
 """
 import random
 
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.datasets import make_swiss_roll, make_circles
+from sklearn.datasets import make_swiss_roll, make_circles, make_blobs, make_moons
 from torch.distributions import Categorical
 from torch.distributions.multivariate_normal import MultivariateNormal
 from torch.distributions.mixture_same_family import MixtureSameFamily
@@ -75,7 +78,7 @@ def filter_tensor(x: torch.Tensor):
 
 
 def sample_ode(z0: torch.Tensor, N: int = None) -> torch.Tensor:
-    ### NOTE: Use Euler method to sample from the learned flow
+    # NOTE: Use Euler method to sample from the learned flow
     dt = 1.0 / N
     traj = torch.empty((N + 1,) + z0.shape)
     # batch_size = z0.shape[0]
@@ -220,7 +223,9 @@ if __name__ == '__main__':
     # 2 ) https://github.com/MaximeVandegar/Papers-in-100-Lines-of-Code/blob/main/Deep_Unsupervised_Learning_using_Nonequilibrium_Thermodynamics/diffusion_models.py#L12
     # 3 ) https://github.com/mbaddar1/Diffusion/blob/281e453d66d413976bc069c75d736c6df3c4a9de/diffusion/ddpm/main.py#L50
     # samples_1 = torch.tensor(make_swiss_roll(n_samples=n_samples, noise=1e-1)[0][:, [0, 2]] / 2.0)
-    samples_1 = torch.tensor(make_circles(n_samples=n_samples, shuffle=True, factor=0.9,noise=0.05)[0]*5.0)
+    # samples_1 = torch.tensor(make_circles(n_samples=n_samples, shuffle=True, factor=0.9,noise=0.05)[0]*5.0)
+    # samples_1 = torch.tensor(make_blobs(n_samples=n_samples, n_features=2)[0])
+    samples_1 = torch.tensor(make_moons(n_samples=n_samples, shuffle=True)[0]*5.0)
     # plot the samples
 
     plt.figure(figsize=(4, 4))
@@ -288,8 +293,8 @@ if __name__ == '__main__':
 
     print(f"Starting tt fitting")
     # TT parameters
-    tt_rank = 7
-    degree = 10
+    tt_rank = 8
+    degree = 20
     degrees = [degree] * (d + 1)  # hotfix by charles that made the GMM work
     ranks = [1] + [tt_rank] * d + [1]
 
@@ -391,5 +396,26 @@ Rank        Deg         Sinkhorn
 7           10          0.74 *
 -----------------------------------------
 iii)
-
+Model : TT-Recflow with legendre poly 
+Dataset : Blobs (no. centres = 3)
+Opt : Fixed Rank TT-ALS
+Numerically
+Ref sinkhorn divergence = 0.01
+Rank        Deg         Sinkhorn
+8           20          11.2
+8           25          10.11
+8           30          9.4 *
+8           35          10.42
+8           40          13.77
+iv) 
+Model : TT-Recflow with legendre poly 
+Dataset : Moons 
+Opt : Fixed Rank TT-ALS
+Numerically
+Ref sinkhorn divergence = 0.005
+Rank        Deg         Sinkhorn
+6           20          3.99 *
+7           10          4.12
+7           20          4.12
+8           20          4.17
 """
