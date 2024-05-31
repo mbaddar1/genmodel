@@ -6,7 +6,7 @@ TODO
     3. Use Swissroll 2D data            DONE
     4. Use Circles Data                 DONE
     5. Use Blob Data                    DONE
-    6. Use Half Moon Data               In-Progress
+    6. Use Half Moon Data               DONE
 """
 import random
 
@@ -24,6 +24,38 @@ SEED = 42
 torch.manual_seed(SEED)
 random.seed(SEED)
 np.random.seed(SEED)
+
+
+def get_target_samples(dataset_name: str, n_samples: int) -> torch.Tensor:
+    # Gaussian Mixture and multivariate normal
+    target_samples = None
+    if dataset_name == "gm":
+        target_mix = Categorical(torch.ones(n_comp))
+        t = 2 * torch.pi * torch.arange(n_comp) / n_comp
+        mu_target = D * torch.stack([-torch.sin(t), torch.cos(t)], axis=1)  # FIXME, stack doesn't get axis param
+        cov_target = var * torch.stack([torch.eye(2) for i in range(n_comp)])
+        target_comp = MultivariateNormal(mu_target, cov_target)
+        target_model = MixtureSameFamily(target_mix, target_comp)
+        target_samples = target_model.sample(torch.Size((n_samples,)))
+    elif dataset_name == "mvn":
+        target_model = MultivariateNormal(D * torch.tensor([1.0, -1.0]),
+                                          torch.tensor([[1.0, 0.9], [0.9, 1.0]]))
+        target_samples = target_model.sample(torch.Size((n_samples,)))
+    elif dataset_name == "swissroll":
+        # Swissroll 2d
+        target_samples = torch.tensor(make_swiss_roll(n_samples=n_samples, noise=1e-1)[0][:, [0, 2]] / 2.0)
+    elif dataset_name == "circles":
+        # circles
+        target_samples = torch.tensor(make_circles(n_samples=n_samples, shuffle=True, factor=0.9, noise=0.05)[0] * 5.0)
+    elif dataset_name == "blobs":
+        # blobs
+        target_samples = torch.tensor(make_blobs(n_samples=n_samples, n_features=2)[0])
+    elif dataset_name == "moons":
+        # moons
+        target_samples = torch.tensor(make_moons(n_samples=n_samples, shuffle=True)[0] * 5.0)
+    else:
+        raise ValueError(f"Unsupported dataset : {dataset_name}")
+    return target_samples
 
 
 ######################## Sample ODE #########################
@@ -97,7 +129,7 @@ def sample_ode(z0: torch.Tensor, N: int = None) -> torch.Tensor:
 ########################## Plot results #########################
 
 
-def draw_plot(model, z0, z1, N, tt_rank):
+def draw_plot(model, z0, z1, N, tt_rank, title):
     from scipy.integrate import odeint
     traj = sample_ode(z0, N)
     # traj = torch.cat([torch.from_numpy(odeint(v, z0[i], torch.linspace(0., 1., steps=N), tfirst=False)) for i in range(z0.shape[0])], axis=0)
@@ -124,7 +156,7 @@ def draw_plot(model, z0, z1, N, tt_rank):
     ax3.set_ylim(*limits)
     ax3.set_title("Generated")
 
-    fig.suptitle('Distribution Samples')
+    fig.suptitle(title)
 
     ax2.scatter(
         z1[:, 0].cpu().numpy(),
@@ -175,7 +207,8 @@ def draw_plot(model, z0, z1, N, tt_rank):
     # plt.title("Distribution")
     # plt.tight_layout()
     # print(f"Saving gen vs actual samples")
-    plt.savefig(f"generated_vs_actual_samples_rank_{tt_rank}_deg_{degree}.png")
+    print("Saving results in image format with naming convention : samples_{dataset_name}_{rank}_{degree}.png")
+    plt.savefig(f"samples_{dataset_name}_{tt_rank}_{degree}.png")
 
     # traj_particles = torch.stack(traj)
     plt.figure(figsize=(4, 4))
@@ -188,44 +221,28 @@ def draw_plot(model, z0, z1, N, tt_rank):
     plt.savefig("trajectory.png")
 
 
+DATASETS_FULL_NAMES = {"gm": "Gaussian Mixtures", "mvn": "Multivariate Normal", "swissroll": "Swissroll 2D",
+                       "circles": "Concentric Circles", "blobs": "3 Cluster Blobs","moons":"Half Moons"}
 ################  Preliminaries  ##############################
 if __name__ == '__main__':
 
     D = 10.0  # 10.0
-    limits = (-15, 15)
+    limits = (-20, 20)
     var: float = 0.3
     n_comp: int = 2
     n_samples: int = 10_000
     d: int = 2
-
+    dataset_name = "swissroll"
     # check if cuda is available
     print(f"Is cuda available => {torch.cuda.is_available()}")
     # we use a standard Gaussian as prior
+    # Init Model and Samples
     mu_prior = torch.zeros(d)
     cov_prior = torch.eye(d)
     initial_model = MultivariateNormal(mu_prior, cov_prior)
-
-    # the target distribution is a Gaussian mixture
-    target_mix = Categorical(torch.ones(n_comp))
-    t = 2 * torch.pi * torch.arange(n_comp) / n_comp
-    mu_target = D * torch.stack([-torch.sin(t), torch.cos(t)], axis=1)  # FIXME, stack doesn't get axis param
-    cov_target = var * torch.stack([torch.eye(2) for i in range(n_comp)])
-    target_comp = MultivariateNormal(mu_target, cov_target)
-    target_model = MixtureSameFamily(target_mix, target_comp)
-    # target_model = MultivariateNormal(D * torch.tensor([1.0, -1.0]), torch.eye(d))
-
     samples_0 = initial_model.sample(torch.Size((n_samples,)))
-    # samples from Gaussian Mixture
-    # samples_1 = target_model.sample(torch.Size((n_samples,)))
-    # samples from 2D swissroll
-    # Same code from
-    # 1 ) https://github.com/Jmkernes/Diffusion/blob/main/diffusion/ddpm/main.py#L44
-    # 2 ) https://github.com/MaximeVandegar/Papers-in-100-Lines-of-Code/blob/main/Deep_Unsupervised_Learning_using_Nonequilibrium_Thermodynamics/diffusion_models.py#L12
-    # 3 ) https://github.com/mbaddar1/Diffusion/blob/281e453d66d413976bc069c75d736c6df3c4a9de/diffusion/ddpm/main.py#L50
-    # samples_1 = torch.tensor(make_swiss_roll(n_samples=n_samples, noise=1e-1)[0][:, [0, 2]] / 2.0)
-    # samples_1 = torch.tensor(make_circles(n_samples=n_samples, shuffle=True, factor=0.9,noise=0.05)[0]*5.0)
-    # samples_1 = torch.tensor(make_blobs(n_samples=n_samples, n_features=2)[0])
-    samples_1 = torch.tensor(make_moons(n_samples=n_samples, shuffle=True)[0]*5.0)
+    # Target Model and Samples
+    samples_1 = get_target_samples(dataset_name=dataset_name, n_samples=n_samples)
     # plot the samples
 
     plt.figure(figsize=(4, 4))
@@ -293,8 +310,9 @@ if __name__ == '__main__':
 
     print(f"Starting tt fitting")
     # TT parameters
-    tt_rank = 8
-    degree = 20
+    tt_rank = 6
+    degree = 30
+
     degrees = [degree] * (d + 1)  # hotfix by charles that made the GMM work
     ranks = [1] + [tt_rank] * d + [1]
 
@@ -334,14 +352,15 @@ if __name__ == '__main__':
         )
         ETT.tt.set_core(d)
     N = 1000
-    draw_plot(ETTs, initial_model.sample(torch.Size((n_samples,))), samples_1, N, tt_rank=tt_rank)
+    draw_plot(ETTs, initial_model.sample(torch.Size((n_samples,))), samples_1, N, tt_rank=tt_rank,
+              title=DATASETS_FULL_NAMES[dataset_name])
 
     # Calculate Sinkhorn losses
 
     # sample_ref_1 = target_model.sample(torch.Size((n_samples,)))  # .cuda()
     # sample_ref_2 = target_model.sample(torch.Size((n_samples,)))  # .cuda()
-    sample_ref_1 = torch.tensor(make_swiss_roll(n_samples=n_samples, noise=1e-1)[0][:, [0, 2]] / 2.0)
-    sample_ref_2 = torch.tensor(make_swiss_roll(n_samples=n_samples, noise=1e-1)[0][:, [0, 2]] / 2.0)
+    sample_ref_1 = get_target_samples(dataset_name=dataset_name, n_samples=n_samples)
+    sample_ref_2 = get_target_samples(dataset_name=dataset_name, n_samples=n_samples)
 
     # check statistics for close samples
     mean_0 = torch.mean(samples_1, dim=0)
@@ -363,6 +382,7 @@ if __name__ == '__main__':
     L_gen_1 = loss(z1_, sample_ref_1)
     L_gen_2 = loss(z1_, sample_ref_2)
 
+    print(f"dataset = {dataset_name}")
     print(f"rank = {tt_rank}")
     print(f"deg = {degree}")
     print(f"Ref sinkhorn = {L_ref}")
@@ -370,52 +390,15 @@ if __name__ == '__main__':
 
 """
 Quick Experiments results
----
-i) 
+------------
 Model : TT-Recflow with legendre poly 
-Dataset : Swissroll 2D 
 Opt : Fixed Rank TT-ALS
-Results: 
-Numerically
-Ref sinkhorn divergence = 0.003
-Best results so far
-Rank        Deg         Sinkhorn
-6           14          0.08
-6           15          0.09
-6           16          0.06 *
-------------------------------------------
-ii)
-Model : TT-Recflow with legendre poly 
-Dataset : Circles
-Opt : Fixed Rank TT-ALS
-Numerically
-Ref sinkhorn divergence = 0.01
-Rank        Deg         Sinkhorn
-6           10          0.76
-6           15          0.63
-7           10          0.74 *
------------------------------------------
-iii)
-Model : TT-Recflow with legendre poly 
-Dataset : Blobs (no. centres = 3)
-Opt : Fixed Rank TT-ALS
-Numerically
-Ref sinkhorn divergence = 0.01
-Rank        Deg         Sinkhorn
-8           20          11.2
-8           25          10.11
-8           30          9.4 *
-8           35          10.42
-8           40          13.77
-iv) 
-Model : TT-Recflow with legendre poly 
-Dataset : Moons 
-Opt : Fixed Rank TT-ALS
-Numerically
-Ref sinkhorn divergence = 0.005
-Rank        Deg         Sinkhorn
-6           20          3.99 *
-7           10          4.12
-7           20          4.12
-8           20          4.17
+
+Dataset             Rank            Degree          SH div. Gen.                SH. div. Ref        Comments
+GM                  7               30              0.163                       0.0001
+MVN                 8               10              0.056                       0.0005
+swissroll_2d        7               25              0.36                        0.003
+circles             6               10              0.067                       0.001
+blob                6               35              27                          23.4                ??
+moons               6               20              0.30                        4.2e-20
 """
