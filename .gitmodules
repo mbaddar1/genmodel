@@ -10,3 +10,6 @@
 [submodule "denoising-diffusion-pytorch"]
 	path = denoising-diffusion-pytorch
 	url = git@github.com:mbaddar1/denoising-diffusion-pytorch.git
+[submodule "RectifiedFlow"]
+	path = RectifiedFlow
+	url = git@github.com:mbaddar1/RectifiedFlow.git
