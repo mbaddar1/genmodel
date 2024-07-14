@@ -79,3 +79,9 @@ FATAL Flags parsing error:
   flag --mode=None: Flag --mode must have a value other than None.
 Pass --helpshort or --helpfull to see help on flags.
 ```
+
+=====================
+# Notes on Reproducibility
+
+1. https://gist.github.com/Guitaricet/28fbb2a753b1bb888ef0b2731c03c031 
+2. 
